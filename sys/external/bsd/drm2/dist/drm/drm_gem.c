@@ -1477,8 +1477,6 @@ drm_gem_unlock_reservations(struct drm_gem_object **objs, int count,
 }
 EXPORT_SYMBOL(drm_gem_unlock_reservations);
 
-#ifndef __NetBSD__		/* XXX xarray */
-
 /**
  * drm_gem_fence_array_add - Adds the fence to an array of fences to be
  * waited on, deduplicating fences from the same context.
@@ -1572,4 +1570,3 @@ int drm_gem_fence_array_add_implicit(struct xarray *fence_array,
 }
 EXPORT_SYMBOL(drm_gem_fence_array_add_implicit);
 
-#endif
