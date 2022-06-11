@@ -1,0 +1,34 @@
+#	$NetBSD: $
+
+version	20180827
+
+#define	limafbbus	{ }
+device	lima: drmkms, drmsched
+attach	lima at fdt
+file 	external/bsd/drm2/lima/lima.c	lima
+
+makeoptions	lima	CPPFLAGS+="-I$S/external/bsd/drm2/dist/drm/lima"
+makeoptions 	lima	CPPFLAGS+="-I$S/external/gpl2/drm2/dist/drm/lima"
+makeoptions 	lima	CPPFLAGS+="-I$S/external/gpl2/drm2/dist/include"
+
+makeoptions	lima	"CWARNFLAGS.lima"+="-Wno-missing-field-initializers"
+makeoptions	lima	"CWARNFLAGS.lima"+="-Wno-shadow"
+
+# Local additions.
+#file	external/bsd/drm2/lima/lima_module.c		lima
+
+file	external/bsd/drm2/dist/drm/lima/lima_bcast.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_ctx.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_device.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_dlbu.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_drv.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_gem.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_gp.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_l2_cache.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_mmu.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_pmu.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_pp.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_sched.c		lima
+file	external/bsd/drm2/dist/drm/lima/lima_vm.c		lima
+
+file 	external/gpl2/drm2/dist/drm/drm_gem_shmem_helper.c	lima

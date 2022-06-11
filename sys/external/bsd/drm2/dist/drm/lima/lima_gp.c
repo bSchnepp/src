@@ -17,10 +17,19 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "lima_gp.h"
 #include "lima_regs.h"
 
+#ifdef __NetBSD__
+#define gp_write(reg, data) bus_space_write_4(ip->bst, ip->bsh, (reg), (data))
+#define gp_read(reg) bus_space_read_4(ip->bst, ip->bsh, (reg))
+#else
 #define gp_write(reg, data) writel(data, ip->iomem + reg)
 #define gp_read(reg) readl(ip->iomem + reg)
+#endif
 
+#ifdef __NetBSD__
+static irqreturn_t lima_gp_irq_handler(void *data)
+#else
 static irqreturn_t lima_gp_irq_handler(int irq, void *data)
+#endif
 {
 	struct lima_ip *ip = data;
 	struct lima_device *dev = ip->dev;
@@ -78,9 +87,15 @@ static int lima_gp_soft_reset_async_wait(struct lima_ip *ip)
 	if (!ip->data.async_reset)
 		return 0;
 
+#ifdef __NetBSD__
+	err = readl_poll_timeout(ip->bst, ip->bsh, LIMA_GP_INT_RAWSTAT, v,
+				 v & LIMA_GP_IRQ_RESET_COMPLETED,
+				 0, 100);
+#else
 	err = readl_poll_timeout(ip->iomem + LIMA_GP_INT_RAWSTAT, v,
 				 v & LIMA_GP_IRQ_RESET_COMPLETED,
 				 0, 100);
+#endif
 	if (err) {
 		dev_err(dev->dev, "gp soft reset time out\n");
 		return err;
@@ -137,7 +152,12 @@ static void lima_gp_task_run(struct lima_sched_pipe *pipe,
 	lima_gp_soft_reset_async_wait(ip);
 
 	for (i = 0; i < LIMA_GP_FRAME_REG_NUM; i++)
+#ifdef __NetBSD__
+		bus_space_write_4(ip->bst, ip->bsh,
+			LIMA_GP_VSCL_START_ADDR + i * 4, f[i]);
+#else
 		writel(f[i], ip->iomem + LIMA_GP_VSCL_START_ADDR + i * 4);
+#endif
 
 	gp_write(LIMA_GP_CMD, LIMA_GP_CMD_UPDATE_PLBU_ALLOC);
 	gp_write(LIMA_GP_CMD, cmd);
@@ -192,7 +212,7 @@ static void lima_gp_task_mmu_error(struct lima_sched_pipe *pipe)
 static void lima_gp_print_version(struct lima_ip *ip)
 {
 	u32 version, major, minor;
-	char *name;
+	const char *name;
 
 	version = gp_read(LIMA_GP_VERSION);
 	major = (version >> 8) & 0xFF;

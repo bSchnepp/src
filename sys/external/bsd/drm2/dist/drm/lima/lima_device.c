@@ -23,8 +23,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "lima_vm.h"
 
 struct lima_ip_desc {
-	char *name;
-	char *irq_name;
+	const char *name;
+	const char *irq_name;
 	bool must_have[lima_gpu_num];
 	int offset[lima_gpu_num];
 
@@ -48,7 +48,7 @@ struct lima_ip_desc {
 		.fini = lima_##func##_fini, \
 	}
 
-static struct lima_ip_desc lima_ip_desc[lima_ip_num] = {
+static const struct lima_ip_desc lima_ip_desc[lima_ip_num] = {
 	LIMA_IP_DESC(pmu,         false, false, 0x02000, 0x02000, pmu,      "pmu"),
 	LIMA_IP_DESC(l2_cache0,   true,  true,  0x01000, 0x10000, l2_cache, NULL),
 	LIMA_IP_DESC(l2_cache1,   false, true,  -1,      0x01000, l2_cache, NULL),
@@ -144,6 +144,7 @@ static void lima_clk_fini(struct lima_device *dev)
 	clk_disable_unprepare(dev->clk_bus);
 }
 
+#ifndef __NetBSD__
 static int lima_regulator_init(struct lima_device *dev)
 {
 	int ret;
@@ -173,10 +174,11 @@ static void lima_regulator_fini(struct lima_device *dev)
 	if (dev->regulator)
 		regulator_disable(dev->regulator);
 }
+#endif
 
 static int lima_init_ip(struct lima_device *dev, int index)
 {
-	struct lima_ip_desc *desc = lima_ip_desc + index;
+	const struct lima_ip_desc *desc = lima_ip_desc + index;
 	struct lima_ip *ip = dev->ip + index;
 	int offset = desc->offset[dev->id];
 	bool must = desc->must_have[dev->id];
@@ -187,7 +189,14 @@ static int lima_init_ip(struct lima_device *dev, int index)
 
 	ip->dev = dev;
 	ip->id = index;
+#ifdef __NetBSD__
+	ip->bst = dev->ddev->bst;
+	err = bus_space_subregion(dev->ddev->bst, dev->bsh, offset, 0x2000/*XXX*/, &ip->bsh);
+	if (err)
+		goto out;
+#else
 	ip->iomem = dev->iomem + offset;
+#endif
 	if (desc->irq_name) {
 		err = platform_get_irq_byname(dev->pdev, desc->irq_name);
 		if (err < 0)
@@ -207,7 +216,7 @@ out:
 
 static void lima_fini_ip(struct lima_device *ldev, int index)
 {
-	struct lima_ip_desc *desc = lima_ip_desc + index;
+	const struct lima_ip_desc *desc = lima_ip_desc + index;
 	struct lima_ip *ip = ldev->ip + index;
 
 	if (ip->present)
@@ -296,17 +305,21 @@ static void lima_fini_pp_pipe(struct lima_device *dev)
 int lima_device_init(struct lima_device *ldev)
 {
 	int err, i;
+#ifndef __NetBSD__
 	struct resource *res;
 
 	dma_set_coherent_mask(ldev->dev, DMA_BIT_MASK(32));
+#endif
 
 	err = lima_clk_init(ldev);
 	if (err)
 		return err;
 
+#ifndef __NetBSD__
 	err = lima_regulator_init(ldev);
 	if (err)
 		goto err_out0;
+#endif
 
 	ldev->empty_vm = lima_vm_create(ldev);
 	if (!ldev->empty_vm) {
@@ -327,6 +340,8 @@ int lima_device_init(struct lima_device *ldev)
 	} else
 		ldev->va_end = LIMA_VA_RESERVE_END;
 
+#ifdef __NetBSD__
+#else
 	res = platform_get_resource(ldev->pdev, IORESOURCE_MEM, 0);
 	ldev->iomem = devm_ioremap_resource(ldev->dev, res);
 	if (IS_ERR(ldev->iomem)) {
@@ -334,7 +349,7 @@ int lima_device_init(struct lima_device *ldev)
 		err = PTR_ERR(ldev->iomem);
 		goto err_out3;
 	}
-
+#endif
 	for (i = 0; i < lima_ip_num; i++) {
 		err = lima_init_ip(ldev, i);
 		if (err)
@@ -349,8 +364,8 @@ int lima_device_init(struct lima_device *ldev)
 	if (err)
 		goto err_out5;
 
-	dev_info(ldev->dev, "bus rate = %lu\n", clk_get_rate(ldev->clk_bus));
-	dev_info(ldev->dev, "mod rate = %lu", clk_get_rate(ldev->clk_gpu));
+	dev_info(ldev->dev, "bus rate = %u\n", clk_get_rate(ldev->clk_bus));
+	dev_info(ldev->dev, "mod rate = %u", clk_get_rate(ldev->clk_gpu));
 
 	return 0;
 
@@ -359,15 +374,19 @@ err_out5:
 err_out4:
 	while (--i >= 0)
 		lima_fini_ip(ldev, i);
+#ifndef __NetBSD__
 err_out3:
+#endif
 	if (ldev->dlbu_cpu)
 		dma_free_wc(ldev->dev, LIMA_PAGE_SIZE,
 			    ldev->dlbu_cpu, ldev->dlbu_dma);
 err_out2:
 	lima_vm_put(ldev->empty_vm);
 err_out1:
+#ifndef __NetBSD__
 	lima_regulator_fini(ldev);
 err_out0:
+#endif
 	lima_clk_fini(ldev);
 	return err;
 }
@@ -385,10 +404,11 @@ void lima_device_fini(struct lima_device *ldev)
 	if (ldev->dlbu_cpu)
 		dma_free_wc(ldev->dev, LIMA_PAGE_SIZE,
 			    ldev->dlbu_cpu, ldev->dlbu_dma);
-
 	lima_vm_put(ldev->empty_vm);
 
+#ifndef __NetBSD__
 	lima_regulator_fini(ldev);
+#endif
 
 	lima_clk_fini(ldev);
 }

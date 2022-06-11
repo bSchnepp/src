@@ -201,7 +201,9 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	struct lima_sched_task *task = to_lima_task(job);
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_fence *fence;
+#ifndef  __NetBSD__
 	struct dma_fence *ret;
+#endif
 	struct lima_vm *vm = NULL, *last_vm = NULL;
 	int i;
 
@@ -217,7 +219,11 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	/* for caller usage of the fence, otherwise irq handler
 	 * may consume the fence before caller use it
 	 */
+#ifdef __NetBSD__
+	(void) dma_fence_get(task->fence);
+#else
 	ret = dma_fence_get(task->fence);
+#endif
 
 	pipe->current_task = task;
 

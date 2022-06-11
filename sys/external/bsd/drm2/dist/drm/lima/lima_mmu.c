@@ -15,9 +15,28 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "lima_vm.h"
 #include "lima_regs.h"
 
+#ifdef __NetBSD__
+#define mmu_write(reg, data) bus_space_write_4(ip->bst, ip->bsh, (reg), (data))
+#define mmu_read(reg) bus_space_read_4(ip->bst, ip->bsh, (reg))
+#else
 #define mmu_write(reg, data) writel(data, ip->iomem + reg)
 #define mmu_read(reg) readl(ip->iomem + reg)
+#endif
 
+#ifdef __NetBSD__
+#define lima_mmu_send_command(cmd, addr, val, cond)	     \
+({							     \
+	int __ret;					     \
+							     \
+	mmu_write(LIMA_MMU_COMMAND, cmd);		     \
+	__ret = readl_poll_timeout(ip->bst, ip->bsh, addr,   \
+				  val, cond, 0, 100);	     \
+	if (__ret)					     \
+		dev_err(dev->dev,			     \
+			"mmu command %x timeout\n", cmd);    \
+	__ret;						     \
+})
+#else
 #define lima_mmu_send_command(cmd, addr, val, cond)	     \
 ({							     \
 	int __ret;					     \
@@ -30,8 +49,17 @@ __KERNEL_RCSID(0, "$NetBSD$");
 			"mmu command %x timeout\n", cmd);    \
 	__ret;						     \
 })
+#endif
 
+#ifdef __NetBSD__
+#define dma dma->dm_segs[0].ds_addr
+#endif
+
+#ifdef __NetBSD__
+static irqreturn_t lima_mmu_irq_handler(void *data)
+#else
 static irqreturn_t lima_mmu_irq_handler(int irq, void *data)
+#endif
 {
 	struct lima_ip *ip = data;
 	struct lima_device *dev = ip->dev;

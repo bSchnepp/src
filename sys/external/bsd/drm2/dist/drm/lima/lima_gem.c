@@ -24,7 +24,9 @@ int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 			   u32 size, u32 flags, u32 *handle)
 {
 	int err;
+#ifndef __NetBSD__
 	gfp_t mask;
+#endif
 	struct drm_gem_shmem_object *shmem;
 	struct drm_gem_object *obj;
 	struct sg_table *sgt;
@@ -36,10 +38,12 @@ int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 	obj = &shmem->base;
 
 	/* Mali Utgard GPU can only support 32bit address space */
+#ifndef __NetBSD__
 	mask = mapping_gfp_mask(obj->filp->f_mapping);
 	mask &= ~__GFP_HIGHMEM;
 	mask |= __GFP_DMA32;
 	mapping_set_gfp_mask(obj->filp->f_mapping, mask);
+#endif
 
 	sgt = drm_gem_shmem_get_pages_sgt(obj);
 	if (IS_ERR(sgt)) {
@@ -105,7 +109,11 @@ struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t siz
 	if (!bo)
 		return NULL;
 
+#ifdef __NetBSD__
+	linux_mutex_init(&bo->lock);
+#else
 	mutex_init(&bo->lock);
+#endif
 	INIT_LIST_HEAD(&bo->va);
 
 	bo->base.base.funcs = &lima_gem_funcs;

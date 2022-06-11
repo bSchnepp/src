@@ -13,8 +13,13 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "lima_bcast.h"
 #include "lima_regs.h"
 
+#ifdef __NetBSD__
+#define bcast_write(reg, data) bus_space_write_4(ip->bst, ip->bsh, (reg), (data))
+#define bcast_read(reg) bus_space_read_4(ip->bst, ip->bsh, (reg))
+#else
 #define bcast_write(reg, data) writel(data, ip->iomem + reg)
 #define bcast_read(reg) readl(ip->iomem + reg)
+#endif
 
 void lima_bcast_enable(struct lima_device *dev, int num_pp)
 {

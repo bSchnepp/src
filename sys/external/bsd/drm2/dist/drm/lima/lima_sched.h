@@ -6,6 +6,7 @@
 #ifndef __LIMA_SCHED_H__
 #define __LIMA_SCHED_H__
 
+#include <linux/xarray.h>
 #include <drm/gpu_scheduler.h>
 
 struct lima_vm;

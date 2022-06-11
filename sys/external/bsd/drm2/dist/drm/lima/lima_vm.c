@@ -44,8 +44,11 @@ static void lima_vm_unmap_range(struct lima_vm *vm, u32 start, u32 end)
 	for (addr = start; addr <= end; addr += LIMA_PAGE_SIZE) {
 		u32 pbe = LIMA_PBE(addr);
 		u32 bte = LIMA_BTE(addr);
-
+#ifdef __NetBSD__
+		((u32 *) vm->bts[pbe].cpu)[bte] = 0;
+#else
 		vm->bts[pbe].cpu[bte] = 0;
+#endif
 	}
 }
 
@@ -64,16 +67,24 @@ static int lima_vm_map_page(struct lima_vm *vm, dma_addr_t pa, u32 va)
 			&vm->bts[pbe].dma, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 		if (!vm->bts[pbe].cpu)
 			return -ENOMEM;
-
+#ifdef __NetBSD__
+		pts = vm->bts[pbe].dma->dm_segs[0].ds_addr;
+		pd = ((u32 *) vm->pd.cpu) + (pbe << LIMA_VM_NUM_PT_PER_BT_SHIFT);
+#else
 		pts = vm->bts[pbe].dma;
 		pd = vm->pd.cpu + (pbe << LIMA_VM_NUM_PT_PER_BT_SHIFT);
+#endif
 		for (j = 0; j < LIMA_VM_NUM_PT_PER_BT; j++) {
 			pd[j] = pts | LIMA_VM_FLAG_PRESENT;
 			pts += LIMA_PAGE_SIZE;
 		}
 	}
 
+#ifdef __NetBSD__
+	((u32 *) vm->bts[pbe].cpu)[bte] = pa | LIMA_VM_FLAGS_CACHE;
+#else
 	vm->bts[pbe].cpu[bte] = pa | LIMA_VM_FLAGS_CACHE;
+#endif
 
 	return 0;
 }
@@ -96,7 +107,11 @@ lima_vm_bo_find(struct lima_vm *vm, struct lima_bo *bo)
 int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 {
 	struct lima_bo_va *bo_va;
+#ifdef __NetBSD__
+	unsigned i;
+#else
 	struct sg_dma_page_iter sg_iter;
+#endif
 	int offset = 0, err;
 
 	mutex_lock(&bo->lock);
@@ -129,6 +144,17 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 	if (err)
 		goto err_out1;
 
+#ifdef __NetBSD__
+	for (i = 0; i < bo->base.sgt->sgl->sg_npgs; i++) {
+		err = lima_vm_map_page(vm,
+		    bo->base.sgt->sgl->sg_dmamap->dm_segs->ds_addr, 
+		    bo_va->node.start + offset);
+		if (err)
+			goto err_out2;
+
+		offset += PAGE_SIZE;
+	}
+#else
 	for_each_sg_dma_page(bo->base.sgt->sgl, &sg_iter, bo->base.sgt->nents, 0) {
 		err = lima_vm_map_page(vm, sg_page_iter_dma_address(&sg_iter),
 				       bo_va->node.start + offset);
@@ -137,7 +163,7 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 
 		offset += PAGE_SIZE;
 	}
-
+#endif
 	mutex_unlock(&vm->lock);
 
 	list_add_tail(&bo_va->list, &bo->va);
@@ -209,7 +235,11 @@ struct lima_vm *lima_vm_create(struct lima_device *dev)
 		return NULL;
 
 	vm->dev = dev;
+#ifdef __NetBSD__
+	linux_mutex_init(&vm->lock);
+#else
 	mutex_init(&vm->lock);
+#endif
 	kref_init(&vm->refcount);
 
 	vm->pd.cpu = dma_alloc_wc(dev->dev, LIMA_PAGE_SIZE, &vm->pd.dma,
@@ -218,8 +248,13 @@ struct lima_vm *lima_vm_create(struct lima_device *dev)
 		goto err_out0;
 
 	if (dev->dlbu_cpu) {
+#ifdef __NetBSD__
+		int err = lima_vm_map_page(
+			vm, dev->dlbu_dma->dm_segs[0].ds_addr, LIMA_VA_RESERVE_DLBU);
+#else
 		int err = lima_vm_map_page(
 			vm, dev->dlbu_dma, LIMA_VA_RESERVE_DLBU);
+#endif
 		if (err)
 			goto err_out1;
 	}

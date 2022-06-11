@@ -20,8 +20,13 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "lima_vm.h"
 #include "lima_regs.h"
 
+#ifdef __NetBSD__
+#define pp_write(reg, data) bus_space_write_4(ip->bst, ip->bsh, (reg), (data))
+#define pp_read(reg) bus_space_read_4(ip->bst, ip->bsh, (reg))
+#else
 #define pp_write(reg, data) writel(data, ip->iomem + reg)
 #define pp_read(reg) readl(ip->iomem + reg)
+#endif
 
 static void lima_pp_handle_irq(struct lima_ip *ip, u32 state)
 {
@@ -43,7 +48,11 @@ static void lima_pp_handle_irq(struct lima_ip *ip, u32 state)
 	pp_write(LIMA_PP_INT_CLEAR, state);
 }
 
+#ifdef __NetBSD__
+static irqreturn_t lima_pp_irq_handler(void *data)
+#else
 static irqreturn_t lima_pp_irq_handler(int irq, void *data)
+#endif
 {
 	struct lima_ip *ip = data;
 	struct lima_device *dev = ip->dev;
@@ -62,7 +71,11 @@ static irqreturn_t lima_pp_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifdef __NetBSD__
+static irqreturn_t lima_pp_bcast_irq_handler(void *data)
+#else
 static irqreturn_t lima_pp_bcast_irq_handler(int irq, void *data)
+#endif
 {
 	int i;
 	irqreturn_t ret = IRQ_NONE;
@@ -165,11 +178,21 @@ static void lima_pp_write_frame(struct lima_ip *ip, u32 *frame, u32 *wb)
 	int i, j, n = 0;
 
 	for (i = 0; i < LIMA_PP_FRAME_REG_NUM; i++)
+#ifdef __NetBSD__
+		bus_space_write_4(ip->bst, ip->bsh,
+			LIMA_PP_FRAME + i * 4, frame[i]);
+#else
 		writel(frame[i], ip->iomem + LIMA_PP_FRAME + i * 4);
+#endif
 
 	for (i = 0; i < 3; i++) {
 		for (j = 0; j < LIMA_PP_WB_REG_NUM; j++)
+#ifdef __NetBSD__
+			bus_space_write_4(ip->bst, ip->bsh,
+				LIMA_PP_WB(i) + j * 4, wb[n++]);
+#else
 			writel(wb[n++], ip->iomem + LIMA_PP_WB(i) + j * 4);
+#endif
 	}
 }
 
@@ -202,7 +225,7 @@ static int lima_pp_hard_reset(struct lima_ip *ip)
 static void lima_pp_print_version(struct lima_ip *ip)
 {
 	u32 version, major, minor;
-	char *name;
+	const char *name;
 
 	version = pp_read(LIMA_PP_VERSION);
 	major = (version >> 8) & 0xFF;

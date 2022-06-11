@@ -14,8 +14,13 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "lima_vm.h"
 #include "lima_regs.h"
 
+#ifdef __NetBSD__
+#define dlbu_write(reg, data) bus_space_write_4(ip->bst, ip->bsh, (reg), (data))
+#define dlbu_read(reg) bus_space_read_4(ip->bst, ip->bsh, (reg))
+#else
 #define dlbu_write(reg, data) writel(data, ip->iomem + reg)
 #define dlbu_read(reg) readl(ip->iomem + reg)
+#endif
 
 void lima_dlbu_enable(struct lima_device *dev, int num_pp)
 {
@@ -51,7 +56,12 @@ int lima_dlbu_init(struct lima_ip *ip)
 {
 	struct lima_device *dev = ip->dev;
 
+#ifdef __NetBSD__
+	dlbu_write(LIMA_DLBU_MASTER_TLLIST_PHYS_ADDR,
+		dev->dlbu_dma->dm_segs[0].ds_addr | 1);
+#else
 	dlbu_write(LIMA_DLBU_MASTER_TLLIST_PHYS_ADDR, dev->dlbu_dma | 1);
+#endif
 	dlbu_write(LIMA_DLBU_MASTER_TLLIST_VADDR, LIMA_VA_RESERVE_DLBU);
 
 	return 0;

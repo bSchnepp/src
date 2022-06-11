@@ -11,6 +11,10 @@
 
 #include "lima_sched.h"
 
+#ifdef __NetBSD__
+#define pipe	pipe_drmhack	/* see intel_display.h */
+#endif
+
 enum lima_gpu_id {
 	lima_gpu_mali400 = 0,
 	lima_gpu_mali450,
@@ -54,7 +58,12 @@ struct lima_ip {
 	enum lima_ip_id id;
 	bool present;
 
+#ifdef __NetBSD__
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+#else
 	void __iomem *iomem;
+#endif
 	int irq;
 
 	union {
@@ -81,7 +90,11 @@ struct lima_device {
 	u32 pp_version;
 	int num_pp;
 
+#ifdef __NetBSD__
+	bus_space_handle_t bsh;
+#else
 	void __iomem *iomem;
+#endif
 	struct clk *clk_bus;
 	struct clk *clk_gpu;
 	struct reset_control *reset;
@@ -94,8 +107,13 @@ struct lima_device {
 	uint64_t va_start;
 	uint64_t va_end;
 
+#ifdef __NetBSD__
+	void *dlbu_cpu;
+	bus_dmamap_t dlbu_dma;
+#else
 	u32 *dlbu_cpu;
 	dma_addr_t dlbu_dma;
+#endif
 };
 
 static inline struct lima_device *
@@ -114,6 +132,20 @@ typedef int (*lima_poll_func_t)(struct lima_ip *);
 static inline int lima_poll_timeout(struct lima_ip *ip, lima_poll_func_t func,
 				    int sleep_us, int timeout_us)
 {
+#ifdef __NetBSD__
+	ktime_t timeout = ktime_get() + timeout_us;
+
+	while (1) {
+		if (func(ip))
+			return 0;
+
+		if (timeout_us && (ktime_get() - timeout) > 0)
+			return -ETIMEDOUT;
+
+		if (sleep_us)
+			usleep_range((sleep_us >> 2) + 1, sleep_us);
+	}
+#else
 	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us);
 
 	might_sleep_if(sleep_us);
@@ -127,6 +159,7 @@ static inline int lima_poll_timeout(struct lima_ip *ip, lima_poll_func_t func,
 		if (sleep_us)
 			usleep_range((sleep_us >> 2) + 1, sleep_us);
 	}
+#endif
 	return 0;
 }
 

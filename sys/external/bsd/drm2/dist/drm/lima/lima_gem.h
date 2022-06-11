@@ -40,6 +40,8 @@ int lima_gem_get_info(struct drm_file *file, u32 handle, u32 *va, u64 *offset);
 int lima_gem_submit(struct drm_file *file, struct lima_submit *submit);
 int lima_gem_wait(struct drm_file *file, u32 handle, u32 op, s64 timeout_ns);
 
+#ifndef __NetBSD__
 void lima_set_vma_flags(struct vm_area_struct *vma);
+#endif
 
 #endif

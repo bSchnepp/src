@@ -85,7 +85,11 @@ void lima_ctx_put(struct lima_ctx *ctx)
 
 void lima_ctx_mgr_init(struct lima_ctx_mgr *mgr)
 {
+#ifdef __NetBSD__
+	linux_mutex_init(&mgr->lock);
+#else
 	mutex_init(&mgr->lock);
+#endif
 	xa_init_flags(&mgr->handles, XA_FLAGS_ALLOC);
 }
 
@@ -99,5 +103,9 @@ void lima_ctx_mgr_fini(struct lima_ctx_mgr *mgr)
 	}
 
 	xa_destroy(&mgr->handles);
+#ifdef __NetBSD__
+	linux_mutex_destroy(&mgr->lock);
+#else
 	mutex_destroy(&mgr->lock);
+#endif
 }

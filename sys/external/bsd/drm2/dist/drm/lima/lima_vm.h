@@ -24,8 +24,13 @@
 struct lima_device;
 
 struct lima_vm_page {
+#ifdef __NetBSD__
+	void *cpu;
+	bus_dmamap_t dma;
+#else
 	u32 *cpu;
 	dma_addr_t dma;
+#endif
 };
 
 struct lima_vm {

@@ -13,8 +13,13 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "lima_pmu.h"
 #include "lima_regs.h"
 
+#ifdef __NetBSD__
+#define pmu_write(reg, data) bus_space_write_4(ip->bst, ip->bsh, reg, data)
+#define pmu_read(reg) bus_space_read_4(ip->bst, ip->bsh, reg)
+#else
 #define pmu_write(reg, data) writel(data, ip->iomem + reg)
 #define pmu_read(reg) readl(ip->iomem + reg)
+#endif
 
 static int lima_pmu_wait_cmd(struct lima_ip *ip)
 {
@@ -22,9 +27,15 @@ static int lima_pmu_wait_cmd(struct lima_ip *ip)
 	int err;
 	u32 v;
 
+#ifdef __NetBSD__
+	err = readl_poll_timeout(ip->bst, ip->bsh, LIMA_PMU_INT_RAWSTAT,
+				 v, v & LIMA_PMU_INT_CMD_MASK,
+				 100, 100000);
+#else
 	err = readl_poll_timeout(ip->iomem + LIMA_PMU_INT_RAWSTAT,
 				 v, v & LIMA_PMU_INT_CMD_MASK,
 				 100, 100000);
+#endif
 	if (err) {
 		dev_err(dev->dev, "timeout wait pmd cmd\n");
 		return err;

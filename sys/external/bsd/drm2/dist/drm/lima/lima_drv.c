@@ -7,7 +7,9 @@
 __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/module.h>
+#ifndef __NetBSD__
 #include <linux/of_platform.h>
+#endif
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <drm/drm_ioctl.h>
@@ -146,7 +148,7 @@ static int lima_ioctl_gem_submit(struct drm_device *dev, void *data, struct drm_
 
 	submit.pipe = args->pipe;
 	submit.bos = bos;
-	submit.lbos = (void *)bos + size;
+	submit.lbos = (void *)(((int *) bos) + size);
 	submit.nr_bos = args->nr_bos;
 	submit.task = task;
 	submit.ctx = ctx;
@@ -244,7 +246,9 @@ static const struct drm_ioctl_desc lima_drm_driver_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(LIMA_CTX_FREE, lima_ioctl_ctx_free, DRM_RENDER_ALLOW),
 };
 
+#ifndef __NetBSD__
 DEFINE_DRM_GEM_FOPS(lima_drm_driver_fops);
+#endif
 
 static struct drm_driver lima_drm_driver = {
 	.driver_features    = DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
@@ -252,7 +256,13 @@ static struct drm_driver lima_drm_driver = {
 	.postclose          = lima_drm_driver_postclose,
 	.ioctls             = lima_drm_driver_ioctls,
 	.num_ioctls         = ARRAY_SIZE(lima_drm_driver_ioctls),
+#ifdef __NetBSD__
+	.fops		    = NULL,
+	.mmap_object	    = &drm_gem_shmem_mmap_object,
+	.gem_uvm_ops	    = &drm_gem_shmem_uvm_ops,
+#else
 	.fops               = &lima_drm_driver_fops,
+#endif
 	.name               = "lima",
 	.desc               = "lima DRM",
 	.date               = "20190217",
@@ -266,6 +276,10 @@ static struct drm_driver lima_drm_driver = {
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.gem_prime_mmap = drm_gem_prime_mmap,
 };
+
+#ifdef __NetBSD__
+struct drm_driver *const lima_driver = &lima_drm_driver;
+#else
 
 static int lima_pdev_probe(struct platform_device *pdev)
 {
@@ -363,3 +377,5 @@ module_exit(lima_exit);
 MODULE_AUTHOR("Lima Project Developers");
 MODULE_DESCRIPTION("Lima DRM Driver");
 MODULE_LICENSE("GPL v2");
+
+#endif
