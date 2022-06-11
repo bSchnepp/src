@@ -121,4 +121,16 @@ pm_runtime_get_if_in_use(struct device *dev __unused)
 	return 1;
 }
 
+static inline int
+pm_runtime_put_sync_autosuspend(struct device *dev __unused)
+{
+	return 1;
+}
+
+static inline int
+pm_runtime_active(struct device *dev __unused)
+{
+	return 1;
+}
+
 #endif  /* _LINUX_PM_RUNTIME_H_ */

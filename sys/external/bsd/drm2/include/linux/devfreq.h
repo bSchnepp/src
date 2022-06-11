@@ -1,11 +1,11 @@
-/*	$NetBSD: reset.h,v 1.1 2018/08/27 06:36:35 riastradh Exp $	*/
+/*	$NetBSD: $	*/
 
 /*-
- * Copyright (c) 2018 The NetBSD Foundation, Inc.
+ * Copyright (c) 2021 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Taylor R. Campbell.
+ * by Robert Swindells
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,17 +29,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_RESET_H_
-#define	_LINUX_RESET_H_
+#ifndef _LINUX_DEVFREQ_H_
+#define _LINUX_DEVFREQ_H_
 
-struct reset_control;
+#include <linux/types.h>
+#include <linux/device.h>
 
-int reset_control_assert(struct reset_control *);
-int reset_control_deassert(struct reset_control *);
+struct devfreq;
 
-struct reset_control *
-devm_reset_control_array_get(struct device *, bool, bool);
-struct reset_control *
-devm_reset_control_array_get_optional_shared(struct device *);
+struct devfreq_dev_status {
+	unsigned long total_time;
+	unsigned long busy_time;
+	unsigned long current_frequency;
+};
 
-#endif	/* _LINUX_RESET_H_ */
+struct devfreq_dev_profile {
+	unsigned int polling_ms;
+};
+
+void *
+devfreq_recommended_opp(struct device *, unsigned long *, uint32_t);
+
+struct devfreq *
+devm_devfreq_add_device(struct device *, struct devfreq_dev_profile *,
+			const char *, void *);
+
+int devfreq_resume_device(struct devfreq *);
+int devfreq_suspend_device(struct devfreq *);
+
+#endif  /* _LINUX_DEVFREQ_H_ */

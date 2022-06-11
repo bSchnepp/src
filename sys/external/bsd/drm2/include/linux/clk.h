@@ -40,13 +40,22 @@
 
 #ifdef FDT
 
+#include <sys/types.h>
+#include <sys/device.h>
 #include <dev/clk/clk.h>
+
+struct clk *devm_clk_get(struct device *, const char *);
+struct clk *devm_clk_get_optional(struct device *, const char *);
+
+int clk_prepare_enable(struct clk *);
+void clk_disable_unprepare(struct clk *);
+
 
 #else
 
 struct clk;
 
-static inline unsigned
+static inline unsigned long
 clk_get_rate(struct clk *clk)
 {
 	panic("unreachable");

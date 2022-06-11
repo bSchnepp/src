@@ -115,6 +115,8 @@ struct dma_buf_export_info {
 #define	dma_buf_put		linux_dma_buf_put
 #define	dma_buf_unmap_attachment linux_dma_buf_unmap_attachment
 #define	get_dma_buf		linux_get_dma_buf
+#define dma_buf_vmap		linux_dma_buf_vmap
+#define dma_buf_vunmap		linux_dma_buf_vunmap
 
 struct dma_buf *
 	dma_buf_export(struct dma_buf_export_info *);
@@ -136,5 +138,8 @@ struct sg_table *
 	    enum dma_data_direction);
 void	dma_buf_unmap_attachment(struct dma_buf_attachment *,
 	    struct sg_table *, enum dma_data_direction);
+
+void *	dma_buf_vmap(struct dma_buf *, bus_dma_tag_t);
+void	dma_buf_vunmap(struct dma_buf *, bus_dma_tag_t);
 
 #endif  /* _LINUX_DMA_BUF_H_ */

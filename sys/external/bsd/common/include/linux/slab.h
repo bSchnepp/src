@@ -172,6 +172,8 @@ struct kmem_cache {
 	size_t		kc_size;
 	void		(*kc_ctor)(void *);
 	void		(*kc_dtor)(void *);
+	unsigned int	kc_useroffset;
+	unsigned int	kc_usersize;
 };
 
 static int
@@ -197,7 +199,8 @@ kmem_cache_dtor(void *cookie, void *ptr)
 /* XXX extension */
 static inline struct kmem_cache *
 kmem_cache_create_dtor(const char *name, size_t size, size_t align,
-    unsigned long flags, void (*ctor)(void *), void (*dtor)(void *))
+    unsigned long flags, unsigned int useroffset, unsigned int usersize,
+    void (*ctor)(void *), void (*dtor)(void *))
 {
 	struct kmem_cache *kc;
 	int pcflags = 0;
@@ -208,12 +211,14 @@ kmem_cache_create_dtor(const char *name, size_t size, size_t align,
 		pcflags |= PR_PSERIALIZE;
 
 	kc = kmem_alloc(sizeof(*kc), KM_SLEEP);
-	kc->kc_pool_cache = pool_cache_init(size, align, 0, pcflags, name, NULL,
-	    IPL_VM, &kmem_cache_ctor, dtor != NULL ? &kmem_cache_dtor : NULL,
-	    kc);
+	kc->kc_pool_cache = pool_cache_init(size, align, useroffset, pcflags,
+	    name, NULL, IPL_VM, &kmem_cache_ctor,
+	    dtor != NULL ? &kmem_cache_dtor : NULL, kc);
 	kc->kc_size = size;
 	kc->kc_ctor = ctor;
 	kc->kc_dtor = dtor;
+	kc->kc_useroffset = useroffset;
+	kc->kc_usersize = usersize;
 
 	return kc;
 }
@@ -222,12 +227,21 @@ static inline struct kmem_cache *
 kmem_cache_create(const char *name, size_t size, size_t align,
     unsigned long flags, void (*ctor)(void *))
 {
-	return kmem_cache_create_dtor(name, size, align, flags, ctor, NULL);
+	return kmem_cache_create_dtor(name, size, align, flags, 0, 0, ctor, NULL);
 }
 
 #define	KMEM_CACHE(T, F)						      \
 	kmem_cache_create(#T, sizeof(struct T), __alignof__(struct T),	      \
 	    (F), NULL)
+
+static inline struct kmem_cache *
+kmem_cache_create_usercopy(const char *name, size_t size, size_t align,
+    unsigned long flags, unsigned int useroffset, unsigned int usersize,
+    void (*ctor)(void *))
+{
+	return kmem_cache_create_dtor(name, size, align, flags, useroffset,
+			usersize, ctor, NULL);
+}
 
 static inline void
 kmem_cache_destroy(struct kmem_cache *kc)

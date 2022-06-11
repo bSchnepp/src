@@ -267,4 +267,13 @@ bitmap_free(unsigned long *bitmap)
 	kfree(bitmap);
 }
 
+static inline void
+bitmap_from_u64(unsigned long *dst, uint64_t mask)
+{
+	dst[0] = mask & ULONG_MAX;
+
+	if (sizeof(mask) > sizeof(unsigned long))
+		dst[1] = mask >> 32;
+}
+	    
 #endif  /* _LINUX_BITMAP_H_ */

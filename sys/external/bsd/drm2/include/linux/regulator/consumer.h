@@ -74,6 +74,25 @@ regulator_set_voltage(struct regulator *reg, int min_uvolt, int max_uvolt)
 	    max_uvolt);
 }
 
+static inline int
+regulator_enable(struct regulator *reg)
+{
+
+	/* XXX errno NetBSD->Linux */
+	return -fdtbus_regulator_enable(&reg->regulator);
+}
+
+static inline int
+regulator_disable(struct regulator *reg)
+{
+
+	/* XXX errno NetBSD->Linux */
+	return -fdtbus_regulator_disable(&reg->regulator);
+}
+
+struct regulator *devm_regulator_get_optional(struct device *, const char *);
+struct regulator *devm_regulator_get(struct device *, const char *);
+
 #else
 
 struct regulator;

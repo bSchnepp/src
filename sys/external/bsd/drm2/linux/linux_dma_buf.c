@@ -249,6 +249,21 @@ dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 		dma_resv_unlock(attach->dmabuf->resv);
 }
 
+void *
+dma_buf_vmap(struct dma_buf *dmabuf, bus_dma_tag_t dmat)
+{
+
+	printf("dma_buf_vmap\n");
+	return NULL;
+}
+
+void
+dma_buf_vunmap(struct dma_buf *dmabuf, bus_dma_tag_t dmat)
+{
+
+	printf("dma_buf_vunmap\n");
+}
+
 static int
 dmabuf_fop_close(struct file *file)
 {

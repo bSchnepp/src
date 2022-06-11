@@ -240,3 +240,13 @@ xa_erase(struct xarray *xa, unsigned long key)
 	}
 	return datum;
 }
+
+bool
+xa_empty(struct xarray *xa)
+{
+	bool empty;
+	mutex_enter(&xa->xa_lock);
+	empty = (RB_TREE_MIN(&xa->xa_tree) == NULL);
+	mutex_exit(&xa->xa_lock);
+	return empty;
+}

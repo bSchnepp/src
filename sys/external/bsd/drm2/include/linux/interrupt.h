@@ -52,4 +52,7 @@ typedef irqreturn_t (*irq_handler_t)(void *);
 void	disable_irq(int);
 void	enable_irq(int);
 
+int devm_request_irq(struct device *, unsigned int, irq_handler_t,
+    unsigned long, const char *, void *);
+
 #endif  /* _LINUX_INTERRUPT_H_ */

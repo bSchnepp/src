@@ -38,6 +38,8 @@
 
 #include <linux/hrtimer.h>
 #include <linux/ratelimit.h>
+#include <linux/slab.h>
+#include <linux/gfp.h>
 
 #define	dev_crit(DEV, FMT, ...)	do {					      \
 	if (DEV)							      \
@@ -102,5 +104,13 @@ devm_add_action(struct device *parent, void (*func)(void *),
 {
 	panic("TODO");
 }
+
+static inline void *
+devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
+{
+	return kzalloc(size, gfp);
+}
+
+void *dev_get_drvdata(struct device *);
 
 #endif  /* _LINUX_DEVICE_H_ */

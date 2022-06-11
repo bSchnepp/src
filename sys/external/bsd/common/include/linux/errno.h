@@ -51,5 +51,6 @@
 #define	EREMOTEIO	EIO	/* XXX Urk...  */
 #define	ECHRNG		ERANGE	/* XXX ??? */
 #define	EHWPOISON	EIO
+#define	EPROBE_DEFER	EWOULDBLOCK
 
 #endif  /* _LINUX_ERRNO_H_ */

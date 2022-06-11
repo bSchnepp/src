@@ -1,11 +1,11 @@
-/*	$NetBSD: reset.h,v 1.1 2018/08/27 06:36:35 riastradh Exp $	*/
+/*	$NetBSD: $	*/
 
 /*-
- * Copyright (c) 2018 The NetBSD Foundation, Inc.
+ * Copyright (c) 2021 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Taylor R. Campbell.
+ * by Robert Swindells
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,17 +29,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_RESET_H_
-#define	_LINUX_RESET_H_
+#ifndef _LINUX_DEVFREQ_COOLING_H_
+#define _LINUX_DEVFREQ_COOLING_H_
 
-struct reset_control;
+#include <linux/devfreq.h>
 
-int reset_control_assert(struct reset_control *);
-int reset_control_deassert(struct reset_control *);
+struct thermal_cooling_device;
 
-struct reset_control *
-devm_reset_control_array_get(struct device *, bool, bool);
-struct reset_control *
-devm_reset_control_array_get_optional_shared(struct device *);
+struct thermal_cooling_device*
+of_devfreq_cooling_register(struct device_node *, struct devfreq *);
 
-#endif	/* _LINUX_RESET_H_ */
+void devfreq_cooling_unregister(struct thermal_cooling_device *);
+
+#endif  /* _LINUX_DEVFREQ_COOLING_H_ */

@@ -54,6 +54,7 @@ enum dma_data_direction {
 enum {
 	DMA_ATTR_NO_WARN	= __BIT(0),
 	DMA_ATTR_SKIP_CPU_SYNC	= __BIT(1),
+	DMA_ATTR_WRITE_COMBINE	= __BIT(2),
 };
 
 static inline uintmax_t
@@ -71,5 +72,9 @@ dma_addressing_limited(device_t dev)
 
 	return false;
 }
+
+void *dma_alloc_wc(struct device *, size_t, bus_dmamap_t *, int);
+
+void dma_free_wc(struct device *, size_t, void *, bus_dmamap_t);
 
 #endif  /* _LINUX_DMA_MAPPING_H_ */
