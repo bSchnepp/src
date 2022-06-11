@@ -292,6 +292,7 @@ struct drm_device {
 	bus_addr_t dmat_subregion_min;
 	bus_addr_t dmat_subregion_max;
 	struct vmem *cma_pool;
+	int phandle;
 #endif
 
 	/** @num_crtcs: Number of CRTCs on this device */
