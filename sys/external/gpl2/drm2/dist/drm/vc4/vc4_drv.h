@@ -9,6 +9,10 @@
 #include <linux/refcount.h>
 #include <linux/uaccess.h>
 
+#ifdef __NetBSD__
+#include <linux/semaphore.h>
+#endif
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
@@ -18,6 +22,12 @@
 #include <drm/drm_modeset_lock.h>
 
 #include "uapi/drm/vc4_drm.h"
+
+#ifdef __NetBSD__
+#define __iomem
+
+#define wait_queue_head_t atomic_t
+#endif
 
 struct drm_device;
 struct drm_gem_object;
@@ -211,9 +221,7 @@ struct vc4_dev {
 		struct timer_list timer;
 		struct work_struct reset_work;
 	} hangcheck;
-
 	struct semaphore async_modeset;
-
 	struct drm_modeset_lock ctm_state_lock;
 	struct drm_private_obj ctm_manager;
 	struct drm_private_obj load_tracker;
@@ -312,7 +320,9 @@ struct vc4_v3d {
 	struct platform_device *pdev;
 	void __iomem *regs;
 	struct clk *clk;
+#ifndef __NetBSD__
 	struct debugfs_regset32 regset;
+#endif
 };
 
 struct vc4_hvs {
@@ -329,7 +339,9 @@ struct vc4_hvs {
 	spinlock_t mm_lock;
 
 	struct drm_mm_node mitchell_netravali_filter;
+#ifndef __NetBSD__
 	struct debugfs_regset32 regset;
+#endif
 };
 
 struct vc4_plane {
@@ -467,8 +479,9 @@ struct vc4_crtc {
 	u32 cob_size;
 
 	struct drm_pending_vblank_event *event;
-
+#ifndef __NetBSD__
 	struct debugfs_regset32 regset;
+#endif
 };
 
 static inline struct vc4_crtc *
@@ -729,9 +742,20 @@ int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
+#ifdef __NetBSD__
+int vc4_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr, struct vm_page **pps, 
+    int npages, int centeridx, int flags);
+
+int vc4_mmap(struct file *filp, off_t *offp, size_t len, int prot, int *flagsp, 
+    int *advicep, struct uvm_object **uobjp, int *maxprotp);
+
+int vc4_prime_mmap(struct drm_gem_object *obj, off_t *offp, size_t len, 
+    int prot, int *flagsp, int *advicep, struct uvm_object **uobjp, int *maxprotp);    
+#else
 vm_fault_t vc4_fault(struct vm_fault *vmf);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
+#endif
 struct drm_gem_object *vc4_prime_import_sg_table(struct drm_device *dev,
 						 struct dma_buf_attachment *attach,
 						 struct sg_table *sgt);
@@ -757,6 +781,7 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
+#ifndef __NetBSD__
 #ifdef CONFIG_DEBUG_FS
 void vc4_debugfs_add_file(struct drm_device *drm,
 			  const char *filename,
@@ -778,6 +803,7 @@ static inline void vc4_debugfs_add_regset32(struct drm_device *drm,
 					    struct debugfs_regset32 *regset)
 {
 }
+#endif
 #endif
 
 /* vc4_drv.c */
@@ -848,7 +874,9 @@ void vc4_plane_async_set_fb(struct drm_plane *plane,
 
 /* vc4_v3d.c */
 extern struct platform_driver vc4_v3d_driver;
+#ifndef __NetBSD__
 extern const struct of_device_id vc4_v3d_dt_match[];
+#endif
 int vc4_v3d_get_bin_slot(struct vc4_dev *vc4);
 int vc4_v3d_bin_bo_get(struct vc4_dev *vc4, bool *used);
 void vc4_v3d_bin_bo_put(struct vc4_dev *vc4);

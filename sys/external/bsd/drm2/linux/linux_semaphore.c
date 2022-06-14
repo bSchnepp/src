@@ -1,5 +1,3 @@
-/* $NetBSD: $ */
-
 /*-
  * Copyright (c) 2022 Brian Schnepp <bschneppdev@gmail.com>
  * All rights reserved.
@@ -26,26 +24,32 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/mutex.h>
- 
-#ifndef _LINUX_SEMAPHORE_H_
-#define _LINUX_SEMAPHORE_H_
+#include <sys/cdefs.h>
+__KERNEL_RCSID(0, "$NetBSD: linux_semaphore.c,v 1.0 2022/06/13 10:47:13 bschnepp Exp $");
 
-struct semaphore {
-	kmutex_t	mtx;
-	unsigned int	value;
-	int		waiters;
-};
+#include <linux/semaphore.h>
 
-/*
- * TODO: Handle initialization!
- */
-#define	DEFINE_SEMAPHORE(name)	struct semaphore name
+void sema_init(struct semaphore *sem, int v)
+{
 
-void sema_init(struct semaphore *sem, int v);
-void down(struct semaphore *sem);
-int down_interruptible(struct semaphore *sem);
-int down_trylock(struct semaphore *sem);
-void up(struct semaphore *sem);
+}
 
-#endif
+void down(struct semaphore *sem)
+{
+
+}
+
+int down_interruptible(struct semaphore *sem)
+{
+	return 0;
+}
+
+int down_trylock(struct semaphore *sem)
+{
+	return 0;
+}
+
+void up(struct semaphore *sem)
+{
+
+}
