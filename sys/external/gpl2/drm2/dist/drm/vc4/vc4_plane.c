@@ -970,16 +970,30 @@ static void vc4_plane_atomic_update(struct drm_plane *plane,
 	 */
 }
 
+#ifndef __NetBSD__
 u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist)
+#else
+u32 vc4_plane_write_dlist(struct drm_plane *plane, bus_space_tag_t dlist_bst,
+    bus_space_handle_t dlist_bsh)
+#endif
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(plane->state);
 	int i;
-
+#ifndef __NetBSD__
 	vc4_state->hw_dlist = dlist;
+#else
+	vc4_state->hw_dlist_bst = dlist_bst;
+	vc4_state->hw_dlist_bsh = dlist_bsh;
+#endif
 
 	/* Can't memcpy_toio() because it needs to be 32-bit writes. */
+#ifndef __NetBSD__
 	for (i = 0; i < vc4_state->dlist_count; i++)
 		writel(vc4_state->dlist[i], &dlist[i]);
+#else
+	for (i = 0; i < vc4_state->dlist_count; i++)
+		bus_space_write_4(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, i, vc4_state->dlist[i]);
+#endif
 
 	return vc4_state->dlist_count;
 }

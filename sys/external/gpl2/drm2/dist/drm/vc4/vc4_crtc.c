@@ -70,8 +70,14 @@ to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
 	return (struct vc4_crtc_state *)crtc_state;
 }
 
+#ifndef __NetBSD__
 #define CRTC_WRITE(offset, val) writel(val, vc4_crtc->regs + (offset))
 #define CRTC_READ(offset) readl(vc4_crtc->regs + (offset))
+#else
+#define CRTC_READ(reg) bus_space_read_4(vc4_crtc->bst, vc4_crtc->bsh, (reg))
+#define CRTC_WRITE(reg, val) bus_space_write_4(vc4_crtc->bst, vc4_crtc->bsh, (reg), (val))
+#endif
+
 
 #ifndef __NetBSD__
 static const struct debugfs_reg32 crtc_regs[] = {

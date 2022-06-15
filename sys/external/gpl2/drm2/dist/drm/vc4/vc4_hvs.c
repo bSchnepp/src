@@ -75,7 +75,9 @@ static const struct debugfs_reg32 hvs_regs[] = {
 void vc4_hvs_dump_state(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+#ifndef __NetBSD__
 	struct drm_printer p = drm_info_printer(&vc4->hvs->pdev->dev);
+#endif
 	int i;
 
 #ifndef __NetBSD__
@@ -102,6 +104,7 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 	}
 }
 
+#ifndef __NetBSD__
 static int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -113,6 +116,7 @@ static int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 
 	return 0;
 }
+#endif
 
 /* The filter kernel is composed of dwords each containing 3 9-bit
  * signed integers packed next to each other.
@@ -141,6 +145,7 @@ static int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 #define VC4_LINEAR_PHASE_KERNEL_DWORDS 6
 #define VC4_KERNEL_DWORDS (VC4_LINEAR_PHASE_KERNEL_DWORDS * 2 - 1)
 
+#ifndef __NetBSD__
 /* Recommended B=1/3, C=1/3 filter choice from Mitchell/Netravali.
  * http://www.cs.utexas.edu/~fussell/courses/cs384g/lectures/mitchell/Mitchell.pdf
  */
@@ -188,6 +193,7 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 
 	return 0;
 }
+#endif
 
 void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)
 {
@@ -211,6 +217,7 @@ void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel)
 	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
 }
 
+#ifndef __NetBSD__
 static void vc4_hvs_report_underrun(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -249,6 +256,7 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 
 	return irqret;
 }
+
 
 static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 {
@@ -392,3 +400,4 @@ struct platform_driver vc4_hvs_driver = {
 		.of_match_table = vc4_hvs_dt_match,
 	},
 };
+#endif

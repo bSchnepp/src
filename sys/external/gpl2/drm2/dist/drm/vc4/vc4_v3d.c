@@ -103,6 +103,7 @@ static const struct debugfs_reg32 v3d_regs[] = {
 };
 #endif
 
+#ifndef __NetBSD__
 static int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
@@ -128,6 +129,7 @@ static int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 
 	return 0;
 }
+#endif
 
 /**
  * Wraps pm_runtime_get_sync() in a refcount, so that we can reliably
@@ -162,6 +164,7 @@ vc4_v3d_pm_put(struct vc4_dev *vc4)
 	mutex_unlock(&vc4->power_lock);
 }
 
+#ifndef __NetBSD__
 static void vc4_v3d_init_hw(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -172,6 +175,7 @@ static void vc4_v3d_init_hw(struct drm_device *dev)
 	 */
 	V3D_WRITE(V3D_VPMBASE, 0);
 }
+#endif
 
 int vc4_v3d_get_bin_slot(struct vc4_dev *vc4)
 {
@@ -395,6 +399,7 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 }
 #endif
 
+#ifndef __NetBSD__
 static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -531,3 +536,4 @@ struct platform_driver vc4_v3d_driver = {
 		.pm = &vc4_v3d_pm_ops,
 	},
 };
+#endif

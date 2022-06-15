@@ -68,6 +68,7 @@ static void vc4_bo_stats_print(struct drm_printer *p, struct vc4_dev *vc4)
 	mutex_unlock(&vc4->purgeable.lock);
 }
 
+#ifndef __NetBSD__
 static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
@@ -79,6 +80,7 @@ static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 
 	return 0;
 }
+#endif
 
 /* Takes ownership of *name and returns the appropriate slot for it in
  * the bo_labels[] array, extending it as necessary.
@@ -694,7 +696,12 @@ struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
 	return dmabuf;
 }
 
+#ifdef __NetBSD__
+int vc4_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr, struct vm_page **pps, 
+    int npages, int centeridx, int flags)
+#else
 vm_fault_t vc4_fault(struct vm_fault *vmf)
+#endif
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
@@ -710,7 +717,12 @@ vm_fault_t vc4_fault(struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
+#ifdef __NetBSD__
+int vc4_mmap(struct file *filp, off_t *offp, size_t len, int prot, int *flagsp, 
+    int *advicep, struct uvm_object **uobjp, int *maxprotp)
+#else
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
+#endif
 {
 	struct drm_gem_object *gem_obj;
 	unsigned long vm_pgoff;
@@ -765,7 +777,12 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 
+#ifdef __NetBSD__
+int vc4_prime_mmap(struct drm_gem_object *obj, off_t *offp, size_t len, 
+    int prot, int *flagsp, int *advicep, struct uvm_object **uobjp, int *maxprotp)
+#else
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+#endif
 {
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
@@ -1034,9 +1051,15 @@ int vc4_bo_cache_init(struct drm_device *dev)
 	for (i = 0; i < VC4_BO_TYPE_COUNT; i++)
 		vc4->bo_labels[i].name = bo_type_names[i];
 
+#ifndef __NetBSD__
 	mutex_init(&vc4->bo_lock);
+#else
+	linux_mutex_init(&vc4->bo_lock);
+#endif
 
+#ifndef __NetBSD__
 	vc4_debugfs_add_file(dev, "bo_stats", vc4_bo_stats_debugfs, NULL);
+#endif
 
 	INIT_LIST_HEAD(&vc4->bo_cache.time_list);
 

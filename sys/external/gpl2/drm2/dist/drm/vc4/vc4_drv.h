@@ -396,7 +396,12 @@ struct vc4_plane_state {
 	/* Offset where the plane's dlist was last stored in the
 	 * hardware at vc4_crtc_atomic_flush() time.
 	 */
+#ifndef __NetBSD__
 	u32 __iomem *hw_dlist;
+#else
+	bus_space_tag_t hw_dlist_bst;
+	bus_space_handle_t hw_dlist_bsh;
+#endif
 
 	/* Clipped coordinates of the plane on the display. */
 	int crtc_x, crtc_y, crtc_w, crtc_h;
@@ -480,7 +485,12 @@ struct vc4_crtc {
 	struct drm_crtc base;
 	struct platform_device *pdev;
 	const struct vc4_crtc_data *data;
+#ifndef __NetBSD__
 	void __iomem *regs;
+#else
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+#endif
 
 	/* Timestamp at start of vblank irq - unaffected by lock delays. */
 	ktime_t t_vblank;
@@ -890,7 +900,12 @@ int vc4_kms_load(struct drm_device *dev);
 /* vc4_plane.c */
 struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				 enum drm_plane_type type);
+#ifndef __NetBSD__
 u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist);
+#else
+u32 vc4_plane_write_dlist(struct drm_plane *plane, bus_space_tag_t dlist_bst,
+    bus_space_handle_t dlist_bsh);
+#endif
 u32 vc4_plane_dlist_size(const struct drm_plane_state *state);
 void vc4_plane_async_set_fb(struct drm_plane *plane,
 			    struct drm_framebuffer *fb);
