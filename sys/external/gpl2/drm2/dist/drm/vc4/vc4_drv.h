@@ -318,7 +318,12 @@ struct vc4_seqno_cb {
 struct vc4_v3d {
 	struct vc4_dev *vc4;
 	struct platform_device *pdev;
+#ifndef __NetBSD__
 	void __iomem *regs;
+#else
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+#endif
 	struct clk *clk;
 #ifndef __NetBSD__
 	struct debugfs_regset32 regset;
@@ -327,8 +332,19 @@ struct vc4_v3d {
 
 struct vc4_hvs {
 	struct platform_device *pdev;
+#ifndef __NetBSD__
 	void __iomem *regs;
+#else
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+#endif
+
+#ifndef __NetBSD__
 	u32 __iomem *dlist;
+#else
+	bus_space_tag_t dlist_bst;
+	bus_space_handle_t dlist_bsh;
+#endif
 
 	/* Memory manager for CRTCs to allocate space in the display
 	 * list.  Units are dwords.
@@ -490,10 +506,17 @@ to_vc4_crtc(struct drm_crtc *crtc)
 	return (struct vc4_crtc *)crtc;
 }
 
+#ifdef __NetBSD__
+#define V3D_READ(reg) bus_space_read_4(vc4->v3d->bst, vc4->v3d->bsh, (reg))
+#define V3D_WRITE(reg, val) bus_space_write_4(vc4->v3d->bst, vc4->v3d->bsh, (reg), (val))
+#define HVS_READ(reg) bus_space_read_4(vc4->hvs->bst, vc4->hvs->bsh, (reg))
+#define HVS_WRITE(reg, val) bus_space_write_4(vc4->hvs->bst, vc4->hvs->bsh, (reg), (val))
+#else
 #define V3D_READ(offset) readl(vc4->v3d->regs + offset)
 #define V3D_WRITE(offset, val) writel(val, vc4->v3d->regs + offset)
 #define HVS_READ(offset) readl(vc4->hvs->regs + offset)
 #define HVS_WRITE(offset, val) writel(val, vc4->hvs->regs + offset)
+#endif
 
 #define VC4_REG32(reg) { .name = #reg, .offset = reg }
 

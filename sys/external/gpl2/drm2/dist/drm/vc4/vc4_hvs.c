@@ -24,6 +24,10 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
+#ifdef __NetBSD__
+#include <sys/stdint.h>
+#endif
+
 #include <linux/component.h>
 #include <linux/platform_device.h>
 
@@ -80,12 +84,21 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 
 	DRM_INFO("HVS ctx:\n");
 	for (i = 0; i < 64; i += 4) {
+#ifndef __NetBSD__
 		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
 			 readl((u32 __iomem *)vc4->hvs->dlist + i + 0),
 			 readl((u32 __iomem *)vc4->hvs->dlist + i + 1),
 			 readl((u32 __iomem *)vc4->hvs->dlist + i + 2),
 			 readl((u32 __iomem *)vc4->hvs->dlist + i + 3));
+#else
+		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
+			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 0),
+			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 1),
+			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 2),
+			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 3));
+#endif
 	}
 }
 
@@ -140,7 +153,10 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 					const u32 *kernel)
 {
 	int ret, i;
+
+#ifndef __NetBSD__
 	u32 __iomem *dst_kernel;
+#endif
 
 	ret = drm_mm_insert_node(&hvs->dlist_mm, space, VC4_KERNEL_DWORDS);
 	if (ret) {
@@ -149,6 +165,7 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 		return ret;
 	}
 
+#ifndef __NetBSD__
 	dst_kernel = hvs->dlist + space->start;
 
 	for (i = 0; i < VC4_KERNEL_DWORDS; i++) {
@@ -159,6 +176,15 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 			       &dst_kernel[i]);
 		}
 	}
+#else
+	for (i = 0; i < VC4_KERNEL_DWORDS; i++) {
+		if (i < VC4_LINEAR_PHASE_KERNEL_DWORDS)
+			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, space->start + i, kernel[i]);
+		else {
+			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, space->start + i, kernel[VC4_KERNEL_DWORDS - i - 1]);
+		}
+	}
+#endif
 
 	return 0;
 }
