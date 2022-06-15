@@ -170,8 +170,9 @@ struct vc4_vec {
 	struct clk *clock;
 
 	const struct vc4_vec_tv_mode *tv_mode;
-
+#ifndef __NetBSD__
 	struct debugfs_regset32 regset;
+#endif
 };
 
 #define VEC_READ(offset) readl(vec->regs + (offset))
@@ -219,6 +220,7 @@ struct vc4_vec_tv_mode {
 	void (*mode_set)(struct vc4_vec *vec);
 };
 
+#ifndef __NetBSD__
 static const struct debugfs_reg32 vec_regs[] = {
 	VC4_REG32(VEC_WSE_CONTROL),
 	VC4_REG32(VEC_WSE_WSS_DATA),
@@ -245,6 +247,7 @@ static const struct debugfs_reg32 vec_regs[] = {
 	VC4_REG32(VEC_DAC_CONFIG),
 	VC4_REG32(VEC_DAC_MISC),
 };
+#endif
 
 static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
 {
@@ -557,10 +560,11 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	vec->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vec->regs))
 		return PTR_ERR(vec->regs);
+#ifndef __NetBSD__
 	vec->regset.base = vec->regs;
 	vec->regset.regs = vec_regs;
 	vec->regset.nregs = ARRAY_SIZE(vec_regs);
-
+#endif
 	vec->clock = devm_clk_get(dev, NULL);
 	if (IS_ERR(vec->clock)) {
 		ret = PTR_ERR(vec->clock);
@@ -584,9 +588,9 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	dev_set_drvdata(dev, vec);
 
 	vc4->vec = vec;
-
+#ifndef __NetBSD__
 	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
-
+#endif
 	return 0;
 
 err_destroy_encoder:

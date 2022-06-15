@@ -545,8 +545,9 @@ struct vc4_dsi {
 
 	struct completion xfer_completion;
 	int xfer_result;
-
+#ifndef __NetBSD__
 	struct debugfs_regset32 regset;
+#endif
 };
 
 #define host_to_dsi(host) container_of(host, struct vc4_dsi, dsi_host)
@@ -607,6 +608,7 @@ to_vc4_dsi_encoder(struct drm_encoder *encoder)
 	return container_of(encoder, struct vc4_dsi_encoder, base.base);
 }
 
+#ifndef __NetBSD__
 static const struct debugfs_reg32 dsi0_regs[] = {
 	VC4_REG32(DSI0_CTRL),
 	VC4_REG32(DSI0_STAT),
@@ -656,6 +658,7 @@ static const struct debugfs_reg32 dsi1_regs[] = {
 	VC4_REG32(DSI1_PHY_AFEC1),
 	VC4_REG32(DSI1_ID),
 };
+#endif
 
 static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
@@ -837,7 +840,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	struct device *dev = &dsi->pdev->dev;
+#ifndef __NetBSD__
 	bool debug_dump_regs = false;
+#endif
 	struct drm_bridge *iter;
 	unsigned long hs_clock;
 	u32 ui_ns;
@@ -853,13 +858,13 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		DRM_ERROR("Failed to runtime PM enable on DSI%d\n", dsi->port);
 		return;
 	}
-
+#ifndef __NetBSD__
 	if (debug_dump_regs) {
 		struct drm_printer p = drm_info_printer(&dsi->pdev->dev);
 		dev_info(&dsi->pdev->dev, "DSI regs before:\n");
 		drm_print_regset32(&p, &dsi->regset);
 	}
-
+#endif
 	/* Round up the clk_set_rate() request slightly, since
 	 * PLLD_DSI1 is an integer divider and its rate selection will
 	 * never round up.
@@ -1096,11 +1101,14 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 			iter->funcs->enable(iter);
 	}
 
+#ifndef __NetBSD__
 	if (debug_dump_regs) {
 		struct drm_printer p = drm_info_printer(&dsi->pdev->dev);
 		dev_info(&dsi->pdev->dev, "DSI regs after:\n");
 		drm_print_regset32(&p, &dsi->regset);
 	}
+#endif
+
 }
 
 static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
@@ -1492,6 +1500,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
 
+#ifndef __NetBSD__
 	dsi->regset.base = dsi->regs;
 	if (dsi->port == 0) {
 		dsi->regset.regs = dsi0_regs;
@@ -1500,6 +1509,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		dsi->regset.regs = dsi1_regs;
 		dsi->regset.nregs = ARRAY_SIZE(dsi1_regs);
 	}
+#endif
 
 	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
@@ -1636,10 +1646,12 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	 */
 	list_splice_init(&dsi->encoder->bridge_chain, &dsi->bridge_chain);
 
+#ifndef __NetBSD__
 	if (dsi->port == 0)
 		vc4_debugfs_add_regset32(drm, "dsi0_regs", &dsi->regset);
 	else
 		vc4_debugfs_add_regset32(drm, "dsi1_regs", &dsi->regset);
+#endif
 
 	pm_runtime_enable(dev);
 

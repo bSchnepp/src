@@ -155,7 +155,9 @@ struct vc4_txp {
 	struct drm_writeback_connector connector;
 
 	void __iomem *regs;
+#ifndef __NetBSD__
 	struct debugfs_regset32 regset;
+#endif
 };
 
 static inline struct vc4_txp *encoder_to_vc4_txp(struct drm_encoder *encoder)
@@ -168,6 +170,7 @@ static inline struct vc4_txp *connector_to_vc4_txp(struct drm_connector *conn)
 	return container_of(conn, struct vc4_txp, connector.base);
 }
 
+#ifndef __NetBSD__
 static const struct debugfs_reg32 txp_regs[] = {
 	VC4_REG32(TXP_DST_PTR),
 	VC4_REG32(TXP_DST_PITCH),
@@ -175,6 +178,7 @@ static const struct debugfs_reg32 txp_regs[] = {
 	VC4_REG32(TXP_DST_CTRL),
 	VC4_REG32(TXP_PROGRESS),
 };
+#endif
 
 static int vc4_txp_connector_get_modes(struct drm_connector *connector)
 {
@@ -392,9 +396,11 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 	txp->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(txp->regs))
 		return PTR_ERR(txp->regs);
+#ifndef __NetBSD__		
 	txp->regset.base = txp->regs;
 	txp->regset.regs = txp_regs;
 	txp->regset.nregs = ARRAY_SIZE(txp_regs);
+#endif
 
 	drm_connector_helper_add(&txp->connector.base,
 				 &vc4_txp_connector_helper_funcs);
@@ -412,9 +418,9 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 
 	dev_set_drvdata(dev, txp);
 	vc4->txp = txp;
-
+#ifndef __NetBSD__
 	vc4_debugfs_add_regset32(drm, "txp_regs", &txp->regset);
-
+#endif
 	return 0;
 }
 

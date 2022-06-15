@@ -28,6 +28,7 @@ struct vc4_debugfs_info_entry {
 int
 vc4_debugfs_init(struct drm_minor *minor)
 {
+#ifndef __NetBSD__
 	struct vc4_dev *vc4 = to_vc4_dev(minor->dev);
 	struct vc4_debugfs_info_entry *entry;
 
@@ -41,10 +42,11 @@ vc4_debugfs_init(struct drm_minor *minor)
 		if (ret)
 			return ret;
 	}
-
+#endif
 	return 0;
 }
 
+#ifndef __NetBSD__
 static int vc4_debugfs_regset32(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
@@ -91,3 +93,4 @@ void vc4_debugfs_add_regset32(struct drm_device *drm,
 {
 	vc4_debugfs_add_file(drm, name, vc4_debugfs_regset32, regset);
 }
+#endif

@@ -32,6 +32,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
+#ifndef __NetBSD__
 static const struct debugfs_reg32 hvs_regs[] = {
 	VC4_REG32(SCALER_DISPCTRL),
 	VC4_REG32(SCALER_DISPSTAT),
@@ -65,6 +66,7 @@ static const struct debugfs_reg32 hvs_regs[] = {
 	VC4_REG32(SCALER_OLEDCOEF1),
 	VC4_REG32(SCALER_OLEDCOEF2),
 };
+#endif
 
 void vc4_hvs_dump_state(struct drm_device *dev)
 {
@@ -72,7 +74,9 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 	struct drm_printer p = drm_info_printer(&vc4->hvs->pdev->dev);
 	int i;
 
+#ifndef __NetBSD__
 	drm_print_regset32(&p, &vc4->hvs->regset);
+#endif
 
 	DRM_INFO("HVS ctx:\n");
 	for (i = 0; i < 64; i += 4) {
@@ -239,9 +243,11 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(hvs->regs))
 		return PTR_ERR(hvs->regs);
 
+#ifndef __NetBSD__
 	hvs->regset.base = hvs->regs;
 	hvs->regset.regs = hvs_regs;
 	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
+#endif
 
 	hvs->dlist = hvs->regs + SCALER_DLIST_START;
 
@@ -307,9 +313,11 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
+#ifndef __NetBSD__
 	vc4_debugfs_add_regset32(drm, "hvs_regs", &hvs->regset);
 	vc4_debugfs_add_file(drm, "hvs_underrun", vc4_hvs_debugfs_underrun,
 			     NULL);
+#endif
 
 	return 0;
 }

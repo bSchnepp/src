@@ -95,8 +95,9 @@ struct vc4_dpi {
 
 	struct clk *pixel_clock;
 	struct clk *core_clock;
-
+#ifndef __NetBSD__
 	struct debugfs_regset32 regset;
+#endif
 };
 
 #define DPI_READ(offset) readl(dpi->regs + (offset))
@@ -114,10 +115,12 @@ to_vc4_dpi_encoder(struct drm_encoder *encoder)
 	return container_of(encoder, struct vc4_dpi_encoder, base.base);
 }
 
+#ifndef __NetBSD__
 static const struct debugfs_reg32 dpi_regs[] = {
 	VC4_REG32(DPI_C),
 	VC4_REG32(DPI_ID),
 };
+#endif
 
 static const struct drm_encoder_funcs vc4_dpi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
@@ -285,10 +288,11 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	dpi->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(dpi->regs))
 		return PTR_ERR(dpi->regs);
+#ifndef __NetBSD__
 	dpi->regset.base = dpi->regs;
 	dpi->regset.regs = dpi_regs;
 	dpi->regset.nregs = ARRAY_SIZE(dpi_regs);
-
+#endif
 	if (DPI_READ(DPI_ID) != DPI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
 			DPI_READ(DPI_ID), DPI_ID_VALUE);
@@ -325,9 +329,9 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	dev_set_drvdata(dev, dpi);
 
 	vc4->dpi = dpi;
-
+#ifndef __NetBSD__
 	vc4_debugfs_add_regset32(drm, "dpi_regs", &dpi->regset);
-
+#endif
 	return 0;
 
 err_destroy_encoder:

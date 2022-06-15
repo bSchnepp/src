@@ -1286,10 +1286,19 @@ vc4_gem_init(struct drm_device *dev)
 
 	INIT_WORK(&vc4->job_done_work, vc4_job_done_work);
 
+#ifdef __NetBSD__
+	linux_mutex_init(&vc4->power_lock);
+#else
 	mutex_init(&vc4->power_lock);
+#endif
 
 	INIT_LIST_HEAD(&vc4->purgeable.list);
+
+#ifdef __NetBSD__
+	linux_mutex_init(&vc4->purgeable.lock);
+#else
 	mutex_init(&vc4->purgeable.lock);
+#endif
 }
 
 void

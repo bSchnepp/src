@@ -142,7 +142,11 @@ validate_bin_pos(struct vc4_exec_info *exec, void *untrusted, uint32_t pos)
 	/* Note that the untrusted pointer passed to these functions is
 	 * incremented past the packet byte.
 	 */
+#ifdef __NetBSD__
+	return (((char*)untrusted) - 1 == ((char*)exec->bin_u) + pos);
+#else
 	return (untrusted - 1 == exec->bin_u + pos);
+#endif
 }
 
 static uint32_t

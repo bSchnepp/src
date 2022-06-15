@@ -81,7 +81,11 @@ struct vc4_perfmon *vc4_perfmon_find(struct vc4_file *vc4file, int id)
 
 void vc4_perfmon_open_file(struct vc4_file *vc4file)
 {
+#ifdef __NetBSD__
+	linux_mutex_init(&vc4file->perfmon.lock);
+#else
 	mutex_init(&vc4file->perfmon.lock);
+#endif
 	idr_init(&vc4file->perfmon.idr);
 }
 

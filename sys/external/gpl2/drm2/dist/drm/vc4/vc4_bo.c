@@ -398,8 +398,13 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 
 	bo->madv = VC4_MADV_WILLNEED;
 	refcount_set(&bo->usecnt, 0);
+#ifdef __NetBSD__
+	linux_mutex_init(&bo->madv_lock);
+#else
 	mutex_init(&bo->madv_lock);
+#endif
 	mutex_lock(&vc4->bo_lock);
+
 	bo->label = VC4_BO_TYPE_KERNEL;
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].num_allocated++;
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].size_allocated += size;

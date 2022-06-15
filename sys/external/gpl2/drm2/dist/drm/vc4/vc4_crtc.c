@@ -73,6 +73,7 @@ to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
 #define CRTC_WRITE(offset, val) writel(val, vc4_crtc->regs + (offset))
 #define CRTC_READ(offset) readl(vc4_crtc->regs + (offset))
 
+#ifndef __NetBSD__
 static const struct debugfs_reg32 crtc_regs[] = {
 	VC4_REG32(PV_CONTROL),
 	VC4_REG32(PV_V_CONTROL),
@@ -88,6 +89,7 @@ static const struct debugfs_reg32 crtc_regs[] = {
 	VC4_REG32(PV_STAT),
 	VC4_REG32(PV_HACT_ACT),
 };
+#endif
 
 bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     bool in_vblank_irq, int *vpos, int *hpos,
@@ -398,7 +400,9 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		struct drm_printer p = drm_info_printer(&vc4_crtc->pdev->dev);
 		dev_info(&vc4_crtc->pdev->dev, "CRTC %d regs before:\n",
 			 drm_crtc_index(crtc));
+#ifndef __NetBSD__
 		drm_print_regset32(&p, &vc4_crtc->regset);
+#endif
 	}
 
 	if (vc4_crtc->channel == 2) {
@@ -442,7 +446,9 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		struct drm_printer p = drm_info_printer(&vc4_crtc->pdev->dev);
 		dev_info(&vc4_crtc->pdev->dev, "CRTC %d regs after:\n",
 			 drm_crtc_index(crtc));
+#ifndef __NetBSD__
 		drm_print_regset32(&p, &vc4_crtc->regset);
+#endif
 	}
 }
 
@@ -1151,9 +1157,11 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(vc4_crtc->regs))
 		return PTR_ERR(vc4_crtc->regs);
 
+#ifndef __NetBSD__
 	vc4_crtc->regset.base = vc4_crtc->regs;
 	vc4_crtc->regset.regs = crtc_regs;
 	vc4_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
+#endif
 
 	/* For now, we create just the primary and the legacy cursor
 	 * planes.  We should be able to stack more planes on easily,
@@ -1228,8 +1236,10 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 
 	platform_set_drvdata(pdev, vc4_crtc);
 
+#ifndef __NetBSD__
 	vc4_debugfs_add_regset32(drm, vc4_crtc->data->debugfs_name,
 				 &vc4_crtc->regset);
+#endif
 
 	return 0;
 

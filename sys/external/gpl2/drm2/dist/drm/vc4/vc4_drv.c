@@ -282,7 +282,11 @@ static int vc4_drm_bind(struct device *dev)
 	drm->dev_private = vc4;
 	INIT_LIST_HEAD(&vc4->debugfs_list);
 
+#ifdef __NetBSD__
+	linux_mutex_init(&vc4->bin_bo_lock);
+#else
 	mutex_init(&vc4->bin_bo_lock);
+#endif
 
 	ret = vc4_bo_cache_init(drm);
 	if (ret)

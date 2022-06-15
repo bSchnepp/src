@@ -20,6 +20,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
+#ifndef __NetBSD__
 static const struct debugfs_reg32 v3d_regs[] = {
 	VC4_REG32(V3D_IDENT0),
 	VC4_REG32(V3D_IDENT1),
@@ -100,6 +101,7 @@ static const struct debugfs_reg32 v3d_regs[] = {
 	VC4_REG32(V3D_FDBGS),
 	VC4_REG32(V3D_ERRSTAT),
 };
+#endif
 
 static int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 {
@@ -412,9 +414,11 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	v3d->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(v3d->regs))
 		return PTR_ERR(v3d->regs);
+#ifndef __NetBSD__
 	v3d->regset.base = v3d->regs;
 	v3d->regset.regs = v3d_regs;
 	v3d->regset.nregs = ARRAY_SIZE(v3d_regs);
+#endif
 
 	vc4->v3d = v3d;
 	v3d->vc4 = vc4;
@@ -464,9 +468,10 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	pm_runtime_set_autosuspend_delay(dev, 40); /* a little over 2 frames. */
 	pm_runtime_enable(dev);
 
+#ifndef __NetBSD__
 	vc4_debugfs_add_file(drm, "v3d_ident", vc4_v3d_debugfs_ident, NULL);
 	vc4_debugfs_add_regset32(drm, "v3d_regs", &v3d->regset);
-
+#endif
 	return 0;
 }
 
