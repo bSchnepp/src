@@ -146,12 +146,12 @@ __KERNEL_RCSID(0, "$NetBSD$");
 /* Number of lines received and committed to memory. */
 #define TXP_PROGRESS		0x10
 
-#ifndef __NetBSD__
-#define TXP_READ(offset) readl(txp->regs + (offset))
-#define TXP_WRITE(offset, val) writel(val, txp->regs + (offset))
-#else
+#ifdef __NetBSD__
 #define TXP_READ(reg) bus_space_read_4(txp->bst, txp->bsh, (reg))
 #define TXP_WRITE(reg, val) bus_space_write_4(txp->bst, txp->bsh, (reg), (val))
+#else
+#define TXP_READ(offset) readl(txp->regs + (offset))
+#define TXP_WRITE(offset, val) writel(val, txp->regs + (offset))
 #endif
 
 struct vc4_txp {
@@ -159,11 +159,11 @@ struct vc4_txp {
 
 	struct drm_writeback_connector connector;
 
-#ifndef __NetBSD__
-	void __iomem *regs;
-#else
+#ifdef __NetBSD__
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
+#else
+	void __iomem *regs;
 #endif
 
 #ifndef __NetBSD__

@@ -165,11 +165,11 @@ struct vc4_vec {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 
-#ifndef __NetBSD__
-	void __iomem *regs;
-#else
+#ifdef __NetBSD__
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
+#else
+	void __iomem *regs;
 #endif
 
 	struct clk *clock;
@@ -180,12 +180,12 @@ struct vc4_vec {
 #endif
 };
 
-#ifndef __NetBSD__
-#define VEC_READ(offset) readl(vec->regs + (offset))
-#define VEC_WRITE(offset, val) writel(val, vec->regs + (offset))
-#else
+#ifdef __NetBSD__
 #define VEC_READ(reg) bus_space_read_4(vec->bst, vec->bsh, (reg))
 #define VEC_WRITE(reg, val) bus_space_write_4(vec->bst, vec->bsh, (reg), (val))
+#else
+#define VEC_READ(offset) readl(vec->regs + (offset))
+#define VEC_WRITE(offset, val) writel(val, vec->regs + (offset))
 #endif
 
 /* VC4 VEC encoder KMS struct */

@@ -86,20 +86,20 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 
 	DRM_INFO("HVS ctx:\n");
 	for (i = 0; i < 64; i += 4) {
-#ifndef __NetBSD__
-		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
-			 readl((u32 __iomem *)vc4->hvs->dlist + i + 0),
-			 readl((u32 __iomem *)vc4->hvs->dlist + i + 1),
-			 readl((u32 __iomem *)vc4->hvs->dlist + i + 2),
-			 readl((u32 __iomem *)vc4->hvs->dlist + i + 3));
-#else
+#ifdef __NetBSD__
 		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
 			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 0),
 			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 1),
 			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 2),
 			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 3));
+#else
+		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
+			 readl((u32 __iomem *)vc4->hvs->dlist + i + 0),
+			 readl((u32 __iomem *)vc4->hvs->dlist + i + 1),
+			 readl((u32 __iomem *)vc4->hvs->dlist + i + 2),
+			 readl((u32 __iomem *)vc4->hvs->dlist + i + 3));
 #endif
 	}
 }

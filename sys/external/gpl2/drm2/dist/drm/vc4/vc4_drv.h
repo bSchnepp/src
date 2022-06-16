@@ -318,11 +318,11 @@ struct vc4_seqno_cb {
 struct vc4_v3d {
 	struct vc4_dev *vc4;
 	struct platform_device *pdev;
-#ifndef __NetBSD__
-	void __iomem *regs;
-#else
+#ifdef __NetBSD__
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
+#else
+	void __iomem *regs;
 #endif
 	struct clk *clk;
 #ifndef __NetBSD__
@@ -332,18 +332,18 @@ struct vc4_v3d {
 
 struct vc4_hvs {
 	struct platform_device *pdev;
-#ifndef __NetBSD__
-	void __iomem *regs;
-#else
+#ifdef __NetBSD__
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
+#else
+	void __iomem *regs;
 #endif
 
-#ifndef __NetBSD__
-	u32 __iomem *dlist;
-#else
+#ifdef __NetBSD__
 	bus_space_tag_t dlist_bst;
 	bus_space_handle_t dlist_bsh;
+#else
+	u32 __iomem *dlist;
 #endif
 
 	/* Memory manager for CRTCs to allocate space in the display
@@ -397,10 +397,10 @@ struct vc4_plane_state {
 	 * hardware at vc4_crtc_atomic_flush() time.
 	 */
 #ifndef __NetBSD__
-	u32 __iomem *hw_dlist;
-#else
 	bus_space_tag_t hw_dlist_bst;
 	bus_space_handle_t hw_dlist_bsh;
+#else
+	u32 __iomem *hw_dlist;
 #endif
 
 	/* Clipped coordinates of the plane on the display. */
@@ -485,11 +485,11 @@ struct vc4_crtc {
 	struct drm_crtc base;
 	struct platform_device *pdev;
 	const struct vc4_crtc_data *data;
-#ifndef __NetBSD__
-	void __iomem *regs;
-#else
+#ifdef __NetBSD__
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
+#else
+	void __iomem *regs;
 #endif
 
 	/* Timestamp at start of vblank irq - unaffected by lock delays. */
@@ -900,7 +900,7 @@ int vc4_kms_load(struct drm_device *dev);
 /* vc4_plane.c */
 struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				 enum drm_plane_type type);
-#ifndef __NetBSD__
+#ifdef __NetBSD__
 u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist);
 #else
 u32 vc4_plane_write_dlist(struct drm_plane *plane, bus_space_tag_t dlist_bst,

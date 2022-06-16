@@ -1051,10 +1051,10 @@ int vc4_bo_cache_init(struct drm_device *dev)
 	for (i = 0; i < VC4_BO_TYPE_COUNT; i++)
 		vc4->bo_labels[i].name = bo_type_names[i];
 
-#ifndef __NetBSD__
-	mutex_init(&vc4->bo_lock);
-#else
+#ifdef __NetBSD__
 	linux_mutex_init(&vc4->bo_lock);
+#else
+	mutex_init(&vc4->bo_lock);
 #endif
 
 #ifndef __NetBSD__

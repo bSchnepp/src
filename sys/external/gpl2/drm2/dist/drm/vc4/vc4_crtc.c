@@ -70,12 +70,12 @@ to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
 	return (struct vc4_crtc_state *)crtc_state;
 }
 
-#ifndef __NetBSD__
-#define CRTC_WRITE(offset, val) writel(val, vc4_crtc->regs + (offset))
-#define CRTC_READ(offset) readl(vc4_crtc->regs + (offset))
-#else
+#ifdef __NetBSD__
 #define CRTC_READ(reg) bus_space_read_4(vc4_crtc->bst, vc4_crtc->bsh, (reg))
 #define CRTC_WRITE(reg, val) bus_space_write_4(vc4_crtc->bst, vc4_crtc->bsh, (reg), (val))
+#else
+#define CRTC_WRITE(offset, val) writel(val, vc4_crtc->regs + (offset))
+#define CRTC_READ(offset) readl(vc4_crtc->regs + (offset))
 #endif
 
 
@@ -400,16 +400,17 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
+
+#ifndef __NetBSD__
 	bool debug_dump_regs = false;
 
 	if (debug_dump_regs) {
 		struct drm_printer p = drm_info_printer(&vc4_crtc->pdev->dev);
 		dev_info(&vc4_crtc->pdev->dev, "CRTC %d regs before:\n",
 			 drm_crtc_index(crtc));
-#ifndef __NetBSD__
 		drm_print_regset32(&p, &vc4_crtc->regset);
-#endif
 	}
+#endif
 
 	if (vc4_crtc->channel == 2) {
 		u32 dispctrl;
@@ -448,14 +449,14 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	 */
 	vc4_crtc_lut_load(crtc);
 
+#ifndef __NetBSD__
 	if (debug_dump_regs) {
 		struct drm_printer p = drm_info_printer(&vc4_crtc->pdev->dev);
 		dev_info(&vc4_crtc->pdev->dev, "CRTC %d regs after:\n",
 			 drm_crtc_index(crtc));
-#ifndef __NetBSD__
 		drm_print_regset32(&p, &vc4_crtc->regset);
-#endif
 	}
+#endif	
 }
 
 static void require_hvs_enabled(struct drm_device *dev)
