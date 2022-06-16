@@ -82,6 +82,7 @@ static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 }
 #endif
 
+#ifndef __NetBSD__
 /* Takes ownership of *name and returns the appropriate slot for it in
  * the bo_labels[] array, extending it as necessary.
  *
@@ -131,6 +132,7 @@ static int vc4_get_user_label(struct vc4_dev *vc4, const char *name)
 		return free_slot;
 	}
 }
+#endif
 
 static void vc4_bo_set_label(struct drm_gem_object *gem_obj, int label)
 {
@@ -169,9 +171,11 @@ static uint32_t bo_page_index(size_t size)
 static void vc4_bo_destroy(struct vc4_bo *bo)
 {
 	struct drm_gem_object *obj = &bo->base.base;
+#ifndef __NetBSD__
 	struct vc4_dev *vc4 = to_vc4_dev(obj->dev);
 
 	lockdep_assert_held(&vc4->bo_lock);
+#endif
 
 	vc4_bo_set_label(obj, -1);
 
@@ -187,9 +191,11 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 
 static void vc4_bo_remove_from_cache(struct vc4_bo *bo)
 {
+#ifndef __NetBSD__
 	struct vc4_dev *vc4 = to_vc4_dev(bo->base.base.dev);
 
 	lockdep_assert_held(&vc4->bo_lock);
+#endif
 	list_del(&bo->unref_head);
 	list_del(&bo->size_head);
 }
@@ -290,20 +296,25 @@ void vc4_bo_remove_from_purgeable_pool(struct vc4_bo *bo)
 	mutex_unlock(&vc4->purgeable.lock);
 }
 
+#ifndef __NetBSD__
 static void vc4_bo_purge(struct drm_gem_object *obj)
 {
 	struct vc4_bo *bo = to_vc4_bo(obj);
+#ifndef __NetBSD__
 	struct drm_device *dev = obj->dev;
+#endif
 
 	WARN_ON(!mutex_is_locked(&bo->madv_lock));
 	WARN_ON(bo->madv != VC4_MADV_DONTNEED);
-
+#ifndef __NetBSD__
 	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
 
 	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.paddr);
+#endif
 	bo->base.vaddr = NULL;
 	bo->madv = __VC4_MADV_PURGED;
 }
+#endif
 
 static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 {
@@ -313,7 +324,9 @@ static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 	while (!list_empty(&vc4->purgeable.list)) {
 		struct vc4_bo *bo = list_first_entry(&vc4->purgeable.list,
 						     struct vc4_bo, size_head);
+#ifndef __NetBSD__
 		struct drm_gem_object *obj = &bo->base.base;
+#endif
 		size_t purged_size = 0;
 
 		vc4_bo_remove_from_purgeable_pool_locked(bo);
@@ -335,12 +348,14 @@ static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 		 * - it is not used by HW blocks
 		 * If one of these conditions is not met, just skip the entry.
 		 */
+#ifndef __NetBSD__
 		if (bo->madv == VC4_MADV_DONTNEED &&
 		    list_empty(&bo->size_head) &&
 		    !refcount_read(&bo->usecnt)) {
 			purged_size = bo->base.base.size;
 			vc4_bo_purge(obj);
 		}
+#endif
 		mutex_unlock(&bo->madv_lock);
 		mutex_lock(&vc4->purgeable.lock);
 
@@ -541,8 +556,10 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 
 	/* Remove the BO from the purgeable list. */
 	mutex_lock(&bo->madv_lock);
+#ifndef __NetBSD__
 	if (bo->madv == VC4_MADV_DONTNEED && !refcount_read(&bo->usecnt))
 		vc4_bo_remove_from_purgeable_pool(bo);
+#endif
 	mutex_unlock(&bo->madv_lock);
 
 	mutex_lock(&vc4->bo_lock);
@@ -650,8 +667,10 @@ void vc4_bo_dec_usecnt(struct vc4_bo *bo)
 	/* Fast path: if the BO is still retained by someone, no need to test
 	 * the madv value.
 	 */
+#ifndef __NetBSD__
 	if (refcount_dec_not_one(&bo->usecnt))
 		return;
+#endif
 
 	mutex_lock(&bo->madv_lock);
 	if (refcount_dec_and_test(&bo->usecnt) &&
@@ -703,7 +722,11 @@ int vc4_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr, struct vm_page **pps,
 vm_fault_t vc4_fault(struct vm_fault *vmf)
 #endif
 {
+#ifdef __NetBSD__	
+	return 0;
+#else
 	struct vm_area_struct *vma = vmf->vma;
+
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
@@ -713,8 +736,8 @@ vm_fault_t vc4_fault(struct vm_fault *vmf)
 	mutex_lock(&bo->madv_lock);
 	WARN_ON(bo->madv != __VC4_MADV_PURGED);
 	mutex_unlock(&bo->madv_lock);
-
 	return VM_FAULT_SIGBUS;
+#endif
 }
 
 #ifdef __NetBSD__
@@ -724,6 +747,7 @@ int vc4_mmap(struct file *filp, off_t *offp, size_t len, int prot, int *flagsp,
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 #endif
 {
+#ifndef __NetBSD__
 	struct drm_gem_object *gem_obj;
 	unsigned long vm_pgoff;
 	struct vc4_bo *bo;
@@ -773,8 +797,9 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	if (ret)
 		drm_gem_vm_close(vma);
-
 	return ret;
+#endif
+	return 0;
 }
 
 #ifdef __NetBSD__
@@ -784,6 +809,7 @@ int vc4_prime_mmap(struct drm_gem_object *obj, off_t *offp, size_t len,
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 #endif
 {
+#ifndef __NetBSD__
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
@@ -792,6 +818,8 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	}
 
 	return drm_gem_cma_prime_mmap(obj, vma);
+#endif
+	return drm_gem_cma_prime_mmap(obj, offp, len, 0, flagsp, advicep, uobjp, maxprotp);
 }
 
 void *vc4_prime_vmap(struct drm_gem_object *obj)
@@ -1098,30 +1126,42 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_vc4_label_bo *args = data;
+#ifndef __NetBSD__
 	char *name;
+#endif
 	struct drm_gem_object *gem_obj;
+#ifdef __NetBSD__
+	int ret = 0;
+#else
 	int ret = 0, label;
+#endif
 
 	if (!args->len)
 		return -EINVAL;
 
+#ifndef __NetBSD__
 	name = strndup_user(u64_to_user_ptr(args->name), args->len + 1);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
+#endif
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+#ifndef __NetBSD__
 		kfree(name);
+#endif
 		return -ENOENT;
 	}
 
 	mutex_lock(&vc4->bo_lock);
+#ifndef __NetBSD__
 	label = vc4_get_user_label(vc4, name);
 	if (label != -1)
 		vc4_bo_set_label(gem_obj, label);
 	else
 		ret = -ENOMEM;
+#endif
 	mutex_unlock(&vc4->bo_lock);
 
 	drm_gem_object_put_unlocked(gem_obj);

@@ -258,7 +258,7 @@ static const struct debugfs_reg32 vec_regs[] = {
 	VC4_REG32(VEC_DAC_MISC),
 };
 #endif
-
+#ifndef __NetBSD__
 static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
 {
 	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_NTSC_STD | VEC_CONFIG0_PDEN);
@@ -400,7 +400,9 @@ static void vc4_vec_encoder_disable(struct drm_encoder *encoder)
 {
 	struct vc4_vec_encoder *vc4_vec_encoder = to_vc4_vec_encoder(encoder);
 	struct vc4_vec *vec = vc4_vec_encoder->vec;
+#ifndef __NetBSD__
 	int ret;
+#endif
 
 	VEC_WRITE(VEC_CFG, 0);
 	VEC_WRITE(VEC_DAC_MISC,
@@ -410,12 +412,13 @@ static void vc4_vec_encoder_disable(struct drm_encoder *encoder)
 		  VEC_DAC_MISC_LDO_PWRDN);
 
 	clk_disable_unprepare(vec->clock);
-
+#ifndef __NetBSD__
 	ret = pm_runtime_put(&vec->pdev->dev);
 	if (ret < 0) {
 		DRM_ERROR("Failed to release power domain: %d\n", ret);
 		return;
 	}
+#endif
 }
 
 static void vc4_vec_encoder_enable(struct drm_encoder *encoder)
@@ -423,13 +426,13 @@ static void vc4_vec_encoder_enable(struct drm_encoder *encoder)
 	struct vc4_vec_encoder *vc4_vec_encoder = to_vc4_vec_encoder(encoder);
 	struct vc4_vec *vec = vc4_vec_encoder->vec;
 	int ret;
-
+#ifndef __NetBSD__
 	ret = pm_runtime_get_sync(&vec->pdev->dev);
 	if (ret < 0) {
 		DRM_ERROR("Failed to retain power domain: %d\n", ret);
 		return;
 	}
-
+#endif
 	/*
 	 * We need to set the clock rate each time we enable the encoder
 	 * because there's a chance we share the same parent with the HDMI
@@ -542,7 +545,10 @@ static const char * const tv_mode_names[] = {
 
 static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 {
+
+#ifndef __NetBSD__
 	struct platform_device *pdev = to_platform_device(dev);
+#endif
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_vec *vec;
@@ -565,11 +571,13 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	vc4_vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
 	vc4_vec_encoder->vec = vec;
 	vec->encoder = &vc4_vec_encoder->base.base;
-
+#ifndef __NetBSD__
 	vec->pdev = pdev;
 	vec->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vec->regs))
 		return PTR_ERR(vec->regs);
+#endif
+
 #ifndef __NetBSD__
 	vec->regset.base = vec->regs;
 	vec->regset.regs = vec_regs;
@@ -583,7 +591,9 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
+#ifndef __NetBSD__
 	pm_runtime_enable(dev);
+#endif
 
 	drm_encoder_init(drm, vec->encoder, &vc4_vec_encoder_funcs,
 			 DRM_MODE_ENCODER_TVDAC, NULL);
@@ -595,7 +605,9 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 		goto err_destroy_encoder;
 	}
 
+#ifndef __NetBSD__
 	dev_set_drvdata(dev, vec);
+#endif
 
 	vc4->vec = vec;
 #ifndef __NetBSD__
@@ -623,7 +635,9 @@ static void vc4_vec_unbind(struct device *dev, struct device *master,
 
 	vc4->vec = NULL;
 }
+#endif
 
+#ifndef __NetBSD__
 static const struct component_ops vc4_vec_ops = {
 	.bind   = vc4_vec_bind,
 	.unbind = vc4_vec_unbind,
@@ -648,3 +662,4 @@ struct platform_driver vc4_vec_driver = {
 		.of_match_table = vc4_vec_dt_match,
 	},
 };
+#endif

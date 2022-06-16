@@ -106,8 +106,12 @@ static uint32_t vc4_full_res_offset(struct vc4_exec_info *exec,
 				    struct drm_vc4_submit_rcl_surface *surf,
 				    uint8_t x, uint8_t y)
 {
+#ifdef __NetBSD__
+	return 0;
+#else
 	return bo->paddr + surf->offset + VC4_TILE_BUFFER_SIZE *
 		(DIV_ROUND_UP(exec->args->width, 32) * y + x);
+#endif
 }
 
 /*
@@ -147,8 +151,10 @@ static void emit_tile(struct vc4_exec_info *exec,
 		} else {
 			rcl_u8(setup, VC4_PACKET_LOAD_TILE_BUFFER_GENERAL);
 			rcl_u16(setup, args->color_read.bits);
+#ifndef __NetBSD__
 			rcl_u32(setup, setup->color_read->paddr +
 				args->color_read.offset);
+#endif
 		}
 	}
 
@@ -169,8 +175,10 @@ static void emit_tile(struct vc4_exec_info *exec,
 		} else {
 			rcl_u8(setup, VC4_PACKET_LOAD_TILE_BUFFER_GENERAL);
 			rcl_u16(setup, args->zs_read.bits);
+#ifndef __NetBSD__
 			rcl_u32(setup, setup->zs_read->paddr +
 				args->zs_read.offset);
+#endif
 		}
 	}
 
@@ -236,10 +244,12 @@ static void emit_tile(struct vc4_exec_info *exec,
 		rcl_u16(setup, args->zs_write.bits |
 			(last_tile_write ?
 			 0 : VC4_STORE_TILE_BUFFER_DISABLE_COLOR_CLEAR));
+#ifndef __NetBSD__
 		rcl_u32(setup,
 			(setup->zs_write->paddr + args->zs_write.offset) |
 			((last && last_tile_write) ?
 			 VC4_LOADSTORE_TILE_BUFFER_EOF : 0));
+#endif
 	}
 
 	if (setup->color_write) {
@@ -359,10 +369,12 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 	}
 
 	rcl_u8(setup, VC4_PACKET_TILE_RENDERING_MODE_CONFIG);
+#ifndef __NetBSD__
 	rcl_u32(setup,
 		(setup->color_write ? (setup->color_write->paddr +
 				       args->color_write.offset) :
 		 0));
+#endif
 	rcl_u16(setup, args->width);
 	rcl_u16(setup, args->height);
 	rcl_u16(setup, args->color_write.bits);
@@ -379,8 +391,10 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 	}
 
 	BUG_ON(setup->next_offset != size);
+#ifndef __NetBSD__
 	exec->ct1ca = setup->rcl->paddr;
 	exec->ct1ea = setup->rcl->paddr + setup->next_offset;
+#endif
 
 	return 0;
 }

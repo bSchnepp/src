@@ -91,7 +91,12 @@ struct vc4_dpi {
 
 	struct drm_encoder *encoder;
 
+#ifdef __NetBSD__
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+#else
 	void __iomem *regs;
+#endif
 
 	struct clk *pixel_clock;
 	struct clk *core_clock;
@@ -100,8 +105,13 @@ struct vc4_dpi {
 #endif
 };
 
+#ifdef __NetBSD__
+#define DPI_READ(reg) bus_space_read_4(dpi->bst, dpi->bsh, (reg))
+#define DPI_WRITE(reg, val) bus_space_write_4(dpi->bst, dpi->bsh, (reg), (val))
+#else
 #define DPI_READ(offset) readl(dpi->regs + (offset))
 #define DPI_WRITE(offset, val) writel(val, dpi->regs + (offset))
+#endif
 
 /* VC4 DPI encoder KMS struct */
 struct vc4_dpi_encoder {
@@ -122,6 +132,8 @@ static const struct debugfs_reg32 dpi_regs[] = {
 };
 #endif
 
+
+#ifndef __NetBSD__
 static const struct drm_encoder_funcs vc4_dpi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
@@ -213,6 +225,7 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 	if (ret)
 		DRM_ERROR("Failed to set clock rate: %d\n", ret);
 }
+
 
 static enum drm_mode_status vc4_dpi_encoder_mode_valid(struct drm_encoder *encoder,
 						       const struct drm_display_mode *mode)
@@ -380,3 +393,4 @@ struct platform_driver vc4_dpi_driver = {
 		.of_match_table = vc4_dpi_dt_match,
 	},
 };
+#endif

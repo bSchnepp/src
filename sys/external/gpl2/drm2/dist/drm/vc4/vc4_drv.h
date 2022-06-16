@@ -170,7 +170,11 @@ struct vc4_dev {
 	 * accesses between the IRQ handler and GEM ioctls.
 	 */
 	spinlock_t job_lock;
+#ifdef __NetBSD__
+	drm_waitqueue_t job_wait_queue;
+#else
 	wait_queue_head_t job_wait_queue;
+#endif
 	struct work_struct job_done_work;
 
 	/* Used to track the active perfmon if any. Access to this field is

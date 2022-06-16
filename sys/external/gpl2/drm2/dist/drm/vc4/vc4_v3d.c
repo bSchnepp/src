@@ -139,6 +139,7 @@ int
 vc4_v3d_pm_get(struct vc4_dev *vc4)
 {
 	mutex_lock(&vc4->power_lock);
+#ifndef __NetBSD__		
 	if (vc4->power_refcount++ == 0) {
 		int ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
 
@@ -148,6 +149,7 @@ vc4_v3d_pm_get(struct vc4_dev *vc4)
 			return ret;
 		}
 	}
+#endif
 	mutex_unlock(&vc4->power_lock);
 
 	return 0;
@@ -158,8 +160,10 @@ vc4_v3d_pm_put(struct vc4_dev *vc4)
 {
 	mutex_lock(&vc4->power_lock);
 	if (--vc4->power_refcount == 0) {
+#ifndef __NetBSD__		
 		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
 		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
+#endif
 	}
 	mutex_unlock(&vc4->power_lock);
 }
@@ -262,15 +266,16 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 
 		if (IS_ERR(bo)) {
 			ret = PTR_ERR(bo);
-
+#ifndef __NetBSD__
 			dev_err(&v3d->pdev->dev,
 				"Failed to allocate memory for tile binning: "
 				"%d. You may need to enable CMA or give it "
 				"more memory.",
 				ret);
+#endif
 			break;
 		}
-
+#ifndef __NetBSD__
 		/* Check if this BO won't trigger the addressing bug. */
 		if ((bo->base.paddr & 0xf0000000) ==
 		    ((bo->base.paddr + bo->base.base.size - 1) & 0xf0000000)) {
@@ -308,6 +313,7 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 
 			break;
 		}
+#endif
 
 		/* Put it on the list to free later, and try again. */
 		list_add(&bo->unref_head, &list);

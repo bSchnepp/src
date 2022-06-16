@@ -57,7 +57,9 @@ __KERNEL_RCSID(0, "$NetBSD$");
 			 V3D_INT_FLDONE | \
 			 V3D_INT_FRDONE)
 
+#ifndef __NetBSD__
 DECLARE_WAIT_QUEUE_HEAD(render_wait);
+#endif
 
 static void
 vc4_overflow_mem_work(struct work_struct *work)
@@ -105,7 +107,10 @@ vc4_overflow_mem_work(struct work_struct *work)
 	}
 	vc4->bin_alloc_overflow = BIT(bin_bo_slot);
 
+/* Disable this write until this is implemented properly */
+#ifndef __NetBSD__
 	V3D_WRITE(V3D_BPOA, bo->base.paddr + bin_bo_slot * vc4->bin_alloc_size);
+#endif
 	V3D_WRITE(V3D_BPOS, bo->base.base.size);
 	V3D_WRITE(V3D_INTCTL, V3D_INT_OUTOMEM);
 	V3D_WRITE(V3D_INTENA, V3D_INT_OUTOMEM);
@@ -193,7 +198,11 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 		exec->fence = NULL;
 	}
 
+#ifdef __NetBSD__
+	DRM_WAKEUP_ALL(&vc4->job_wait_queue, &vc4->bin_bo_lock);
+#else
 	wake_up_all(&vc4->job_wait_queue);
+#endif
 	schedule_work(&vc4->job_done_work);
 }
 
@@ -246,8 +255,11 @@ vc4_irq_preinstall(struct drm_device *dev)
 
 	if (!vc4->v3d)
 		return;
-
+#ifdef __NetBSD__
+	DRM_INIT_WAITQUEUE(&vc4->job_wait_queue, "vc4irq");
+#else
 	init_waitqueue_head(&vc4->job_wait_queue);
+#endif
 	INIT_WORK(&vc4->overflow_mem_work, vc4_overflow_mem_work);
 
 	/* Clear any pending interrupts someone might have left around

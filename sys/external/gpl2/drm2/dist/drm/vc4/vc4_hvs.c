@@ -217,6 +217,7 @@ void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel)
 	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
 }
 
+
 #ifndef __NetBSD__
 static void vc4_hvs_report_underrun(struct drm_device *dev)
 {
@@ -226,7 +227,11 @@ static void vc4_hvs_report_underrun(struct drm_device *dev)
 	DRM_DEV_ERROR(dev->dev, "HVS underrun\n");
 }
 
+#ifdef __NetBSD__
+static irqreturn_t vc4_hvs_irq_handler(void *data)
+#else
 static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
+#endif
 {
 	struct drm_device *dev = data;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -257,7 +262,6 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 	return irqret;
 }
 
-
 static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -273,17 +277,17 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 
 	hvs->pdev = pdev;
 
+#ifndef __NetBSD__
 	hvs->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(hvs->regs))
 		return PTR_ERR(hvs->regs);
 
-#ifndef __NetBSD__
 	hvs->regset.base = hvs->regs;
 	hvs->regset.regs = hvs_regs;
 	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
-#endif
 
 	hvs->dlist = hvs->regs + SCALER_DLIST_START;
+#endif
 
 	spin_lock_init(&hvs->mm_lock);
 
@@ -370,6 +374,7 @@ static void vc4_hvs_unbind(struct device *dev, struct device *master,
 
 	vc4->hvs = NULL;
 }
+
 
 static const struct component_ops vc4_hvs_ops = {
 	.bind   = vc4_hvs_bind,

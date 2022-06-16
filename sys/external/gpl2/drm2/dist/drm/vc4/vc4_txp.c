@@ -171,10 +171,12 @@ struct vc4_txp {
 #endif
 };
 
+#ifndef __NetBSD__
 static inline struct vc4_txp *encoder_to_vc4_txp(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct vc4_txp, connector.encoder);
 }
+#endif
 
 static inline struct vc4_txp *connector_to_vc4_txp(struct drm_connector *conn)
 {
@@ -191,6 +193,7 @@ static const struct debugfs_reg32 txp_regs[] = {
 };
 #endif
 
+#ifndef __NetBSD__
 static int vc4_txp_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -467,7 +470,6 @@ static const struct of_device_id vc4_txp_dt_match[] = {
 	{ .compatible = "brcm,bcm2835-txp" },
 	{ /* sentinel */ },
 };
-
 struct platform_driver vc4_txp_driver = {
 	.probe = vc4_txp_probe,
 	.remove = vc4_txp_remove,
@@ -476,3 +478,4 @@ struct platform_driver vc4_txp_driver = {
 		.of_match_table = vc4_txp_dt_match,
 	},
 };
+#endif

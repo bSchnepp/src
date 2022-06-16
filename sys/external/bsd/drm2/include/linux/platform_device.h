@@ -79,4 +79,10 @@ platform_get_irq_byname(const struct platform_device *dev, const char *name)
 	return 0;
 }
 
+static inline int
+platform_get_irq(struct platform_device *dev, unsigned int num)
+{
+	return 0;
+}
+
 #endif  /* _LINUX_PLATFORM_DEVICE_H_ */

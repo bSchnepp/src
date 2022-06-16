@@ -82,8 +82,16 @@ struct vc4_hdmi {
 	struct vc4_hdmi_audio audio;
 
 	struct i2c_adapter *ddc;
+
+#ifdef __NetBSD__
+	bus_space_tag_t hdmicore_bst;
+	bus_space_handle_t hdmicore_bsh;
+	bus_space_tag_t hd_bst;
+	bus_space_handle_t hd_bsh;
+#else
 	void __iomem *hdmicore_regs;
 	void __iomem *hd_regs;
+#endif
 	int hpd_gpio;
 	bool hpd_active_low;
 
@@ -95,14 +103,23 @@ struct vc4_hdmi {
 	struct clk *pixel_clock;
 	struct clk *hsm_clock;
 
+#ifndef __NetBSD__
 	struct debugfs_regset32 hdmi_regset;
 	struct debugfs_regset32 hd_regset;
+#endif
 };
 
+#ifdef __NetBSD__
+#define HDMI_READ(reg) bus_space_read_4(vc4->hdmi->hdmicore_bst, vc4->hdmi->hdmicore_bsh, (reg))
+#define HDMI_WRITE(reg, val) bus_space_write_4(vc4->hdmi->hdmicore_bst, vc4->hdmi->hdmicore_bsh, (reg), (val))
+#define HD_READ(reg) bus_space_read_4(vc4->hdmi->hd_bst, vc4->hdmi->hd_bsh, (reg))
+#define HD_WRITE(reg, val) bus_space_write_4(vc4->hdmi->hd_bst, vc4->hdmi->hd_bsh, (reg), (val))
+#else
 #define HDMI_READ(offset) readl(vc4->hdmi->hdmicore_regs + offset)
 #define HDMI_WRITE(offset, val) writel(val, vc4->hdmi->hdmicore_regs + offset)
 #define HD_READ(offset) readl(vc4->hdmi->hd_regs + offset)
 #define HD_WRITE(offset, val) writel(val, vc4->hdmi->hd_regs + offset)
+#endif
 
 /* VC4 HDMI encoder KMS struct */
 struct vc4_hdmi_encoder {
@@ -134,6 +151,7 @@ to_vc4_hdmi_connector(struct drm_connector *connector)
 	return container_of(connector, struct vc4_hdmi_connector, base);
 }
 
+#ifndef __NetBSD__
 static const struct debugfs_reg32 hdmi_regs[] = {
 	VC4_REG32(VC4_HDMI_CORE_REV),
 	VC4_REG32(VC4_HDMI_SW_RESET_CONTROL),
@@ -197,6 +215,7 @@ static int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
 
 	return 0;
 }
+#endif
 
 static enum drm_connector_status
 vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
@@ -1447,7 +1466,9 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err_destroy_encoder;
 
+#ifndef __NetBSD__
 	vc4_debugfs_add_file(drm, "hdmi_regs", vc4_hdmi_debugfs_regs, hdmi);
+#endif
 
 	return 0;
 
