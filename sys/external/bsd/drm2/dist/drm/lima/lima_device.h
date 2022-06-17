@@ -85,6 +85,10 @@ struct lima_device {
 	struct drm_device *ddev;
 	struct platform_device *pdev;
 
+#ifdef __NetBSD__
+	int phandle;
+#endif
+
 	enum lima_gpu_id id;
 	u32 gp_version;
 	u32 pp_version;

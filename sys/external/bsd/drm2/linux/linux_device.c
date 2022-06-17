@@ -48,10 +48,11 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <linux/regulator/consumer.h>
 #include <linux/dma-mapping.h>
 
-
 struct gpu_softc {
 	device_t		sc_dev;
 	struct drm_device	*sc_drm_dev;
+	void			*sc_pdev;
+	int			sc_phandle;
 };
 
 struct reset_control {
@@ -63,7 +64,7 @@ struct clk *devm_clk_get(struct device *dev, const char *id)
 	struct gpu_softc *const sc = device_private(dev);
 	struct clk *fdtclk;
 
-	fdtclk = fdtbus_clock_get(sc->sc_drm_dev->phandle, id);
+	fdtclk = fdtbus_clock_get(sc->sc_phandle, id);
 	if (!fdtclk)
 		printf("couldn't get clock %s\n", id);
 	return fdtclk;
@@ -91,7 +92,7 @@ devm_reset_control_array_get_optional_shared(struct device *dev)
 {
 	struct gpu_softc *const sc = device_private(dev);
 
-	return (struct reset_control *) fdtbus_reset_get_index(sc->sc_drm_dev->phandle, 0);
+	return (struct reset_control *) fdtbus_reset_get_index(sc->sc_phandle, 0);
 }
 
 int reset_control_assert(struct reset_control *reset)
@@ -113,13 +114,13 @@ int devm_request_irq(struct device *dev, unsigned int irq,
 	struct gpu_softc *const sc = device_private(dev);
 	char intrstr[128];
 
-	if (!fdtbus_intr_str(sc->sc_drm_dev->phandle, 0,
+	if (!fdtbus_intr_str(sc->sc_phandle, 0,
 		intrstr, sizeof(intrstr))) {
 		aprint_error_dev(dev, "failed to decode interrupt\n");
 		return -1;
 	}
 
-	sc->sc_drm_dev->irq_cookie = fdtbus_intr_establish_xname(sc->sc_drm_dev->phandle, 0, IPL_BIO,
+	sc->sc_drm_dev->irq_cookie = fdtbus_intr_establish_xname(sc->sc_phandle, 0, IPL_BIO,
 	    0, handler, dev_id, devname);
 	
 	return 0;
@@ -131,7 +132,7 @@ devm_regulator_get_optional(struct device *dev, const char *id)
 	struct gpu_softc *const sc = device_private(dev);
 	struct fdtbus_regulator *reg;
 
-	reg = fdtbus_regulator_acquire(sc->sc_drm_dev->phandle, id);
+	reg = fdtbus_regulator_acquire(sc->sc_phandle, id);
 	printf("devm_regulator_get_optional: %s %p\n", id, reg);
 	return (struct regulator *) reg;
 }

@@ -110,10 +110,10 @@ lima_attach(device_t parent, device_t self, void *aux)
 	sc->sc_drm_dev->dev_private = &sc->sc_ldev;
 	sc->sc_ldev.dev = sc->sc_dev;
 	sc->sc_ldev.ddev = sc->sc_drm_dev;
+	sc->sc_ldev.phandle = faa->faa_phandle;
 
 	sc->sc_drm_dev->bst = faa->faa_bst;
 	sc->sc_drm_dev->dmat = faa->faa_dmat;
-	sc->sc_drm_dev->phandle = faa->faa_phandle;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
