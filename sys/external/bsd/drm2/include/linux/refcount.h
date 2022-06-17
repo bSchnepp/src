@@ -51,6 +51,18 @@ refcount_inc(struct refcount *rc)
 	atomic_inc(&rc->rc_count);
 }
 
+static inline void
+refcount_dec(struct refcount *rc)
+{
+	atomic_dec(&rc->rc_count);
+}
+
+static inline int
+refcount_read(struct refcount *rc)
+{
+	return atomic_read(&rc->rc_count);
+}
+
 static inline int __must_check
 refcount_inc_not_zero(struct refcount *rc)
 {

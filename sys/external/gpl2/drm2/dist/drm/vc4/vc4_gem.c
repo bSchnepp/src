@@ -128,7 +128,11 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			goto err_delete_handle;
 		}
 		bo_state[i].handle = handle;
+#ifdef __NetBSD__
+		bo_state[i].paddr = vc4_bo->base.dmasegs[0].ds_addr;
+#else
 		bo_state[i].paddr = vc4_bo->base.paddr;
+#endif
 		bo_state[i].size = vc4_bo->base.base.size;
 	}
 
@@ -295,6 +299,7 @@ vc4_reset(struct drm_device *dev)
 	DRM_INFO("Resetting GPU.\n");
 
 	mutex_lock(&vc4->power_lock);
+#if 0
 	if (vc4->power_refcount) {
 		/* Power the device off and back on the by dropping the
 		 * reference on runtime PM.
@@ -302,6 +307,7 @@ vc4_reset(struct drm_device *dev)
 		pm_runtime_put_sync_suspend(&vc4->v3d->pdev->dev);
 		pm_runtime_get_sync(&vc4->v3d->pdev->dev);
 	}
+#endif
 	mutex_unlock(&vc4->power_lock);
 
 	vc4_irq_reset(dev);
@@ -902,16 +908,28 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	list_add_tail(&to_vc4_bo(&exec->exec_bo->base)->unref_head,
 		      &exec->unref_list);
 
+#ifdef __NetBSD__
+	exec->ct0ca = exec->exec_bo->dmasegs[0].ds_addr + bin_offset;
+#else
 	exec->ct0ca = exec->exec_bo->paddr + bin_offset;
+#endif
 
 	exec->bin_u = bin;
 
 	exec->shader_rec_v = exec->exec_bo->vaddr + shader_rec_offset;
+#ifdef __NetBSD__
+	exec->shader_rec_p = exec->exec_bo->dmasegs[0].ds_addr + shader_rec_offset;
+#else
 	exec->shader_rec_p = exec->exec_bo->paddr + shader_rec_offset;
+#endif
 	exec->shader_rec_size = args->shader_rec_size;
 
 	exec->uniforms_v = exec->exec_bo->vaddr + uniforms_offset;
+#ifdef __NetBSD__
+	exec->uniforms_p = exec->exec_bo->dmasegs[0].ds_addr + uniforms_offset;
+#else
 	exec->uniforms_p = exec->exec_bo->paddr + uniforms_offset;
+#endif
 	exec->uniforms_size = args->uniforms_size;
 
 	ret = vc4_validate_bin_cl(dev,
