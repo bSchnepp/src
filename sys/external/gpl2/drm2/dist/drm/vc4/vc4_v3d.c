@@ -275,12 +275,17 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 #endif
 			break;
 		}
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+		/* Check if this BO won't trigger the addressing bug. */
+		if ((bo->base.dmasegs[0].ds_addr & 0xf0000000) ==
+		    ((bo->base.dmasegs[0].ds_addr + bo->base.base.size - 1) & 0xf0000000)) {
+			vc4->bin_bo = bo;
+#else
 		/* Check if this BO won't trigger the addressing bug. */
 		if ((bo->base.paddr & 0xf0000000) ==
 		    ((bo->base.paddr + bo->base.base.size - 1) & 0xf0000000)) {
 			vc4->bin_bo = bo;
-
+#endif
 			/* Set up for allocating 512KB chunks of
 			 * binner memory.  The biggest allocation we
 			 * need to do is for the initial tile alloc +
@@ -313,7 +318,6 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 
 			break;
 		}
-#endif
 
 		/* Put it on the list to free later, and try again. */
 		list_add(&bo->unref_head, &list);

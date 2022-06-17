@@ -170,7 +170,15 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 		return ret;
 	}
 
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+	for (i = 0; i < VC4_KERNEL_DWORDS; i++) {
+		if (i < VC4_LINEAR_PHASE_KERNEL_DWORDS)
+			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, space->start + i, kernel[i]);
+		else {
+			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, space->start + i, kernel[VC4_KERNEL_DWORDS - i - 1]);
+		}
+	}
+#else
 	dst_kernel = hvs->dlist + space->start;
 
 	for (i = 0; i < VC4_KERNEL_DWORDS; i++) {
@@ -179,14 +187,6 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 		else {
 			writel(kernel[VC4_KERNEL_DWORDS - i - 1],
 			       &dst_kernel[i]);
-		}
-	}
-#else
-	for (i = 0; i < VC4_KERNEL_DWORDS; i++) {
-		if (i < VC4_LINEAR_PHASE_KERNEL_DWORDS)
-			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, space->start + i, kernel[i]);
-		else {
-			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, space->start + i, kernel[VC4_KERNEL_DWORDS - i - 1]);
 		}
 	}
 #endif

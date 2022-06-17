@@ -107,8 +107,12 @@ vc4_overflow_mem_work(struct work_struct *work)
 	}
 	vc4->bin_alloc_overflow = BIT(bin_bo_slot);
 
-/* Disable this write until this is implemented properly */
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+	/* The physical address needed by vc4 can be accessed via the NetBSD dma interfaces.
+	 * See bus_dma (9) for more details on this.
+	 */
+	V3D_WRITE(V3D_BPOA, bo->base.dmasegs[0].ds_addr + bin_bo_slot * vc4->bin_alloc_size);
+#else
 	V3D_WRITE(V3D_BPOA, bo->base.paddr + bin_bo_slot * vc4->bin_alloc_size);
 #endif
 	V3D_WRITE(V3D_BPOS, bo->base.base.size);

@@ -404,7 +404,7 @@ validate_tile_binning_config(VALIDATE_ARGS)
 	 */
 	exec->bin_slots |= BIT(bin_slot);
 #ifdef __NetBSD__
-	bin_addr = 0;
+	bin_addr = vc4->bin_bo->base.dmasegs[0].ds_addr + bin_slot * vc4->bin_alloc_size;
 #else
 	bin_addr = vc4->bin_bo->base.paddr + bin_slot * vc4->bin_alloc_size;
 #endif
