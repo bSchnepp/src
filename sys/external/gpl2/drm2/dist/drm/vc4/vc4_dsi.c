@@ -23,6 +23,14 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
+#ifdef __NetBSD__
+#include <dev/fdt/fdtvar.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+
+#include <linux/platform_device.h>
+#endif
+
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -506,7 +514,12 @@ struct vc4_dsi {
 	struct drm_bridge *bridge;
 	struct list_head bridge_chain;
 
+#ifdef __NetBSD__
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+#else
 	void __iomem *regs;
+#endif
 
 	struct dma_chan *reg_dma_chan;
 	dma_addr_t reg_dma_paddr;
@@ -533,8 +546,10 @@ struct vc4_dsi {
 	 */
 	struct clk *pll_phy_clock;
 
+#ifndef __NetBSD__
 	/* HS Clocks generated within the DSI analog PHY. */
 	struct clk_fixed_factor phy_clocks[3];
+#endif
 
 	struct clk_hw_onecell_data *clk_onecell;
 
@@ -552,17 +567,24 @@ struct vc4_dsi {
 
 #define host_to_dsi(host) container_of(host, struct vc4_dsi, dsi_host)
 
+
 static inline void
 dsi_dma_workaround_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 {
+#ifndef __NetBSD__
 	struct dma_chan *chan = dsi->reg_dma_chan;
 	struct dma_async_tx_descriptor *tx;
+
 	dma_cookie_t cookie;
 	int ret;
 
 	/* DSI0 should be able to write normally. */
 	if (!chan) {
+#ifdef __NetBSD__
+		bus_space_write_4(dsi->bst, dsi->bsh, offset, val);
+#else		
 		writel(val, dsi->regs + offset);
+#endif
 		return;
 	}
 
@@ -586,8 +608,18 @@ dsi_dma_workaround_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 	ret = dma_sync_wait(chan, cookie);
 	if (ret)
 		DRM_ERROR("Failed to wait for DMA: %d\n", ret);
+#endif
 }
 
+#ifdef __NetBSD__
+#define DSI_READ(offset) bus_space_read_4(dsi->bst, dsi->bsh, (offset))
+#define DSI_WRITE(offset, val) dsi_dma_workaround_write(dsi, offset, val)
+#define DSI_PORT_READ(offset) \
+	DSI_READ(dsi->port ? DSI1_##offset : DSI0_##offset)
+#define DSI_PORT_WRITE(offset, val) \
+	DSI_WRITE(dsi->port ? DSI1_##offset : DSI0_##offset, val)
+#define DSI_PORT_BIT(bit) (dsi->port ? DSI1_##bit : DSI0_##bit)
+#else
 #define DSI_READ(offset) readl(dsi->regs + (offset))
 #define DSI_WRITE(offset, val) dsi_dma_workaround_write(dsi, offset, val)
 #define DSI_PORT_READ(offset) \
@@ -595,6 +627,7 @@ dsi_dma_workaround_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 #define DSI_PORT_WRITE(offset, val) \
 	DSI_WRITE(dsi->port ? DSI1_##offset : DSI0_##offset, val)
 #define DSI_PORT_BIT(bit) (dsi->port ? DSI1_##bit : DSI0_##bit)
+#endif
 
 /* VC4 DSI encoder KMS struct */
 struct vc4_dsi_encoder {
@@ -660,6 +693,7 @@ static const struct debugfs_reg32 dsi1_regs[] = {
 };
 #endif
 
+#ifndef __NetBSD__
 static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
@@ -668,7 +702,9 @@ static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
 static const struct drm_encoder_funcs vc4_dsi_encoder_funcs = {
 	.destroy = vc4_dsi_encoder_destroy,
 };
+#endif
 
+#ifdef notyet
 static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
 {
 	u32 afec0 = DSI_PORT_READ(PHY_AFEC0);
@@ -684,7 +720,11 @@ static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
 /* Enters or exits Ultra Low Power State. */
 static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 {
+#ifdef __NetBSD__
+	bool non_continuous = 0;
+#else
 	bool non_continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
+#endif
 	u32 phyc_ulps = ((non_continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
 			 DSI_PHYC_DLANE0_ULPS |
 			 (dsi->lanes > 1 ? DSI_PHYC_DLANE1_ULPS : 0) |
@@ -711,9 +751,15 @@ static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) | phyc_ulps);
 	ret = wait_for((DSI_PORT_READ(STAT) & stat_ulps) == stat_ulps, 200);
 	if (ret) {
+#if __NetBSD__
+		dev_warn(dsi->pdev->pd_dev,
+			 "Timeout waiting for DSI ULPS entry: STAT 0x%08x",
+			 DSI_PORT_READ(STAT));
+#else
 		dev_warn(&dsi->pdev->dev,
 			 "Timeout waiting for DSI ULPS entry: STAT 0x%08x",
 			 DSI_PORT_READ(STAT));
+#endif
 		DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) & ~phyc_ulps);
 		vc4_dsi_latch_ulps(dsi, false);
 		return;
@@ -730,9 +776,15 @@ static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) & ~phyc_ulps);
 	ret = wait_for((DSI_PORT_READ(STAT) & stat_stop) == stat_stop, 200);
 	if (ret) {
+#if __NetBSD__
+		dev_warn(dsi->pdev->pd_dev,
+			 "Timeout waiting for DSI STOP entry: STAT 0x%08x",
+			 DSI_PORT_READ(STAT));
+#else
 		dev_warn(&dsi->pdev->dev,
 			 "Timeout waiting for DSI STOP entry: STAT 0x%08x",
 			 DSI_PORT_READ(STAT));
+#endif
 		DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) & ~phyc_ulps);
 		return;
 	}
@@ -760,7 +812,11 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
+#if __NetBSD__
+	struct device *dev = dsi->pdev->pd_dev;
+#else
 	struct device *dev = &dsi->pdev->dev;
+#endif
 	struct drm_bridge *iter;
 
 	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
@@ -833,13 +889,19 @@ static bool vc4_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 
 	return true;
 }
+#endif
 
+#ifdef notyet
 static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
+#ifdef __NetBSD__
+	struct device *dev = dsi->pdev->pd_dev;
+#else
 	struct device *dev = &dsi->pdev->dev;
+#endif
 #ifndef __NetBSD__
 	bool debug_dump_regs = false;
 #endif
@@ -871,10 +933,17 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	 */
 	phy_clock = (pixel_clock_hz + 1000) * dsi->divider;
 	ret = clk_set_rate(dsi->pll_phy_clock, phy_clock);
+#if __NetBSD__
+	if (ret) {
+		dev_err(dsi->pdev->pd_dev,
+			"Failed to set phy clock to %ld: %d\n", phy_clock, ret);
+	}
+#else
 	if (ret) {
 		dev_err(&dsi->pdev->dev,
 			"Failed to set phy clock to %ld: %d\n", phy_clock, ret);
 	}
+#endif
 
 	/* Reset the DSI and all its fifos. */
 	DSI_PORT_WRITE(CTRL,
@@ -895,9 +964,10 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 
 		if (dsi->lanes < 2)
 			afec0 |= DSI0_PHY_AFEC0_PD_DLANE1;
-
+#if notyet
 		if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO))
 			afec0 |= DSI0_PHY_AFEC0_RESET;
+#endif
 
 		DSI_PORT_WRITE(PHY_AFEC0, afec0);
 
@@ -1026,7 +1096,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	DSI_PORT_WRITE(HS_DLT7,
 		       VC4_SET_FIELD(dsi_esc_timing(1000000),
 				     DSI_HS_DLT7_LP_WUP));
-
+#if notyet
 	DSI_PORT_WRITE(PHYC,
 		       DSI_PHYC_DLANE0_ENABLE |
 		       (dsi->lanes >= 2 ? DSI_PHYC_DLANE1_ENABLE : 0) |
@@ -1038,6 +1108,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		       (dsi->port == 0 ?
 			VC4_SET_FIELD(lpx - 1, DSI0_PHYC_ESC_CLK_LPDT) :
 			VC4_SET_FIELD(lpx - 1, DSI1_PHYC_ESC_CLK_LPDT)));
+#endif
 
 	DSI_PORT_WRITE(CTRL,
 		       DSI_PORT_READ(CTRL) |
@@ -1080,7 +1151,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		if (iter->funcs->pre_enable)
 			iter->funcs->pre_enable(iter);
 	}
-
+#if notyet
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		DSI_PORT_WRITE(DISP0_CTRL,
 			       VC4_SET_FIELD(dsi->divider,
@@ -1095,6 +1166,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 			       DSI_DISP0_COMMAND_MODE |
 			       DSI_DISP0_ENABLE);
 	}
+#endif
 
 	list_for_each_entry(iter, &dsi->bridge_chain, chain_node) {
 		if (iter->funcs->enable)
@@ -1110,7 +1182,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 #endif
 
 }
-
+#ifndef __NetBSD__
 static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 				     const struct mipi_dsi_msg *msg)
 {
@@ -1266,6 +1338,7 @@ reset_fifo_and_return:
 	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
 	return ret;
 }
+#endif
 
 static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
@@ -1307,6 +1380,7 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 
 	return 0;
 }
+
 
 static int vc4_dsi_host_detach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
@@ -1408,7 +1482,11 @@ static irqreturn_t vc4_dsi_irq_handler(int irq, void *data)
 static int
 vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 {
+#ifdef __NetBSD__
+	struct device *dev = dsi->pdev->pd_dev;
+#else
 	struct device *dev = &dsi->pdev->dev;
+#endif
 	const char *parent_name = __clk_get_name(dsi->pll_phy_clock);
 	static const struct {
 		const char *dsi0_name, *dsi1_name;
@@ -1467,7 +1545,74 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 				      of_clk_hw_onecell_get,
 				      dsi->clk_onecell);
 }
+#endif
 
+#ifdef __NetBSD__
+static int vc4_match(device_t, cfdata_t, void *);
+static void vc4_attach(device_t, device_t, void *);
+
+static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-dsi1",
+	  .data = (void *)((uintptr_t)(1)) },
+	DEVICE_COMPAT_EOL
+};
+
+struct vc4dsi_softc {
+	device_t		sc_dev;
+	struct drm_device	*sc_drm_dev;
+};
+
+CFATTACH_DECL_NEW(vc4, sizeof(struct vc4dsi_softc),
+	vc4_match, vc4_attach, NULL, NULL);
+
+/* XXX Kludge to get these from vc4_drv.c.  */
+extern struct drm_driver *const vc4_drm_driver;
+
+static int
+vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+{
+	struct fdt_attach_args * const faa = aux;
+	return of_compatible_match(faa->faa_phandle, compat_data);
+}
+
+static void
+vc4_attach(device_t parent, device_t self, void *aux)
+{
+	struct vc4dsi_softc *const sc = device_private(self);
+	struct fdt_attach_args * const faa = aux;
+
+	const int phandle = faa->faa_phandle;
+	bus_addr_t addr;
+	bus_size_t size;
+	int error;
+
+	sc->sc_dev = self;
+	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
+	if (IS_ERR(sc->sc_drm_dev)) {
+		aprint_error_dev(self, "unable to create drm device: %ld\n",
+		    PTR_ERR(sc->sc_drm_dev));
+		sc->sc_drm_dev = NULL;
+		return;
+	}
+
+	sc->sc_drm_dev->bst = faa->faa_bst;
+	sc->sc_drm_dev->dmat = faa->faa_dmat;
+	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
+		aprint_error(": couldn't get registers\n");
+		return;
+	}
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
+}
+#else
 static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1738,3 +1883,4 @@ struct platform_driver vc4_dsi_driver = {
 		.of_match_table = vc4_dsi_dt_match,
 	},
 };
+#endif

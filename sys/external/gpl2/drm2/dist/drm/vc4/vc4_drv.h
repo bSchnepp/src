@@ -80,6 +80,221 @@ struct vc4_perfmon {
 	u64 counters[0];
 };
 
+#ifdef __NetBSD__
+struct vc4_dev {
+	struct drm_device *dev;
+
+	struct vc4_hdmi *hdmi;
+	struct vc4_v3d *v3d;
+	struct vc4_dpi *dpi;
+	struct vc4_dsi *dsi1;
+	struct vc4_vec *vec;
+	struct vc4_txp *txp;
+
+	struct vc4_hang_state *hang_state;
+
+	/* The kernel-space BO cache.  Tracks buffers that have been
+	 * unreferenced by all other users (refcounts of 0!) but not
+	 * yet freed, so we can do cheap allocations.
+	 */
+	struct vc4_bo_cache {
+		/* Array of list heads for entries in the BO cache,
+		 * based on number of pages, so we can do O(1) lookups
+		 * in the cache when allocating.
+		 */
+		struct list_head *size_list;
+		uint32_t size_list_size;
+
+		/* List of all BOs in the cache, ordered by age, so we
+		 * can do O(1) lookups when trying to free old
+		 * buffers.
+		 */
+		struct list_head time_list;
+		struct work_struct time_work;
+		struct timer_list time_timer;
+	} bo_cache;
+
+	u32 num_labels;
+	struct vc4_label {
+		const char *name;
+		u32 num_allocated;
+		u32 size_allocated;
+	} *bo_labels;
+
+	/* Protects bo_cache and bo_labels. */
+	struct mutex bo_lock;
+
+	/* Purgeable BO pool. All BOs in this pool can have their memory
+	 * reclaimed if the driver is unable to allocate new BOs. We also
+	 * keep stats related to the purge mechanism here.
+	 */
+	struct {
+		struct list_head list;
+		unsigned int num;
+		size_t size;
+		unsigned int purged_num;
+		size_t purged_size;
+		struct mutex lock;
+	} purgeable;
+
+	uint64_t dma_fence_context;
+
+	/* Sequence number for the last job queued in bin_job_list.
+	 * Starts at 0 (no jobs emitted).
+	 */
+	uint64_t emit_seqno;
+
+	/* Sequence number for the last completed job on the GPU.
+	 * Starts at 0 (no jobs completed).
+	 */
+	uint64_t finished_seqno;
+
+	/* List of all struct vc4_exec_info for jobs to be executed in
+	 * the binner.  The first job in the list is the one currently
+	 * programmed into ct0ca for execution.
+	 */
+	struct list_head bin_job_list;
+
+	/* List of all struct vc4_exec_info for jobs that have
+	 * completed binning and are ready for rendering.  The first
+	 * job in the list is the one currently programmed into ct1ca
+	 * for execution.
+	 */
+	struct list_head render_job_list;
+
+	/* List of the finished vc4_exec_infos waiting to be freed by
+	 * job_done_work.
+	 */
+	struct list_head job_done_list;
+	/* Spinlock used to synchronize the job_list and seqno
+	 * accesses between the IRQ handler and GEM ioctls.
+	 */
+	spinlock_t job_lock;
+	drm_waitqueue_t job_wait_queue;
+	struct work_struct job_done_work;
+
+	/* Used to track the active perfmon if any. Access to this field is
+	 * protected by job_lock.
+	 */
+	struct vc4_perfmon *active_perfmon;
+
+	/* List of struct vc4_seqno_cb for callbacks to be made from a
+	 * workqueue when the given seqno is passed.
+	 */
+	struct list_head seqno_cb_list;
+
+	/* The memory used for storing binner tile alloc, tile state,
+	 * and overflow memory allocations.  This is freed when V3D
+	 * powers down.
+	 */
+	struct vc4_bo *bin_bo;
+
+	/* Size of blocks allocated within bin_bo. */
+	uint32_t bin_alloc_size;
+
+	/* Bitmask of the bin_alloc_size chunks in bin_bo that are
+	 * used.
+	 */
+	uint32_t bin_alloc_used;
+
+	/* Bitmask of the current bin_alloc used for overflow memory. */
+	uint32_t bin_alloc_overflow;
+
+	/* Incremented when an underrun error happened after an atomic commit.
+	 * This is particularly useful to detect when a specific modeset is too
+	 * demanding in term of memory or HVS bandwidth which is hard to guess
+	 * at atomic check time.
+	 */
+	atomic_t underrun;
+
+	struct work_struct overflow_mem_work;
+
+	int power_refcount;
+
+	/* Set to true when the load tracker is active. */
+	bool load_tracker_enabled;
+
+	/* Mutex controlling the power refcount. */
+	struct mutex power_lock;
+
+	struct {
+		struct timer_list timer;
+		struct work_struct reset_work;
+	} hangcheck;
+	struct semaphore async_modeset;
+	struct drm_modeset_lock ctm_state_lock;
+	struct drm_private_obj ctm_manager;
+	struct drm_private_obj load_tracker;
+
+	/* List of vc4_debugfs_info_entry for adding to debugfs once
+	 * the minor is available (after drm_dev_register()).
+	 */
+	struct list_head debugfs_list;
+
+	/* Mutex for binner bo allocation. */
+	struct mutex bin_bo_lock;
+	/* Reference count for our binner bo. */
+	struct kref bin_bo_kref;
+};
+
+struct vc4hvs_dev {
+	struct drm_device *dev;
+	struct vc4_hvs *hvs;
+
+	struct vc4_hang_state *hang_state;
+
+	uint64_t dma_fence_context;
+
+	/* Sequence number for the last job queued in bin_job_list.
+	 * Starts at 0 (no jobs emitted).
+	 */
+	uint64_t emit_seqno;
+
+	/* Sequence number for the last completed job on the GPU.
+	 * Starts at 0 (no jobs completed).
+	 */
+	uint64_t finished_seqno;
+
+	/* Incremented when an underrun error happened after an atomic commit.
+	 * This is particularly useful to detect when a specific modeset is too
+	 * demanding in term of memory or HVS bandwidth which is hard to guess
+	 * at atomic check time.
+	 */
+	atomic_t underrun;
+
+	struct work_struct overflow_mem_work;
+
+	int power_refcount;
+
+	/* Set to true when the load tracker is active. */
+	bool load_tracker_enabled;
+
+	/* Mutex controlling the power refcount. */
+	struct mutex power_lock;
+
+	struct {
+		struct timer_list timer;
+		struct work_struct reset_work;
+	} hangcheck;
+	struct semaphore async_modeset;
+	struct drm_modeset_lock ctm_state_lock;
+	struct drm_private_obj ctm_manager;
+	struct drm_private_obj load_tracker;
+};
+
+static inline struct vc4_dev *
+to_vc4_dev(struct drm_device *dev)
+{
+	return (struct vc4_dev *)dev->dev_private;
+}
+
+static inline struct vc4hvs_dev *
+to_vc4hvs_dev(struct drm_device *dev)
+{
+	return (struct vc4hvs_dev *)dev->dev_private;
+}
+
+#else
 struct vc4_dev {
 	struct drm_device *dev;
 
@@ -170,11 +385,7 @@ struct vc4_dev {
 	 * accesses between the IRQ handler and GEM ioctls.
 	 */
 	spinlock_t job_lock;
-#ifdef __NetBSD__
-	drm_waitqueue_t job_wait_queue;
-#else
 	wait_queue_head_t job_wait_queue;
-#endif
 	struct work_struct job_done_work;
 
 	/* Used to track the active perfmon if any. Access to this field is
@@ -246,6 +457,7 @@ to_vc4_dev(struct drm_device *dev)
 {
 	return (struct vc4_dev *)dev->dev_private;
 }
+#endif
 
 struct vc4_bo {
 	struct drm_gem_cma_object base;
@@ -844,7 +1056,13 @@ static inline void vc4_debugfs_add_regset32(struct drm_device *drm,
 #endif
 
 /* vc4_drv.c */
+#ifdef __NetBSD__
+void vc4_ioremap_regs(struct platform_device *dev, int index, 
+						bus_space_tag_t *bst, 
+						bus_space_handle_t *bsh);
+#else
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
+#endif
 
 /* vc4_dpi.c */
 extern struct platform_driver vc4_dpi_driver;

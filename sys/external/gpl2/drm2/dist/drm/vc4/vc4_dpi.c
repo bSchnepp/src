@@ -16,6 +16,14 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
+#ifdef __NetBSD__
+#include <dev/fdt/fdtvar.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+
+#include <linux/platform_device.h>
+#endif
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
@@ -132,7 +140,6 @@ static const struct debugfs_reg32 dpi_regs[] = {
 };
 #endif
 
-
 #ifndef __NetBSD__
 static const struct drm_encoder_funcs vc4_dpi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
@@ -226,7 +233,6 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 		DRM_ERROR("Failed to set clock rate: %d\n", ret);
 }
 
-
 static enum drm_mode_status vc4_dpi_encoder_mode_valid(struct drm_encoder *encoder,
 						       const struct drm_display_mode *mode)
 {
@@ -235,7 +241,9 @@ static enum drm_mode_status vc4_dpi_encoder_mode_valid(struct drm_encoder *encod
 
 	return MODE_OK;
 }
+#endif
 
+#ifndef __NetBSD__
 static const struct drm_encoder_helper_funcs vc4_dpi_encoder_helper_funcs = {
 	.disable = vc4_dpi_encoder_disable,
 	.enable = vc4_dpi_encoder_enable,
@@ -246,15 +254,22 @@ static const struct of_device_id vc4_dpi_dt_match[] = {
 	{ .compatible = "brcm,bcm2835-dpi", .data = NULL },
 	{}
 };
+#endif
 
+#ifndef __NetBSD__
 /* Sets up the next link in the display chain, whether it's a panel or
  * a bridge.
  */
 static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 {
+#if __NetBSD__
+	struct device *dev = dpi->pdev->pd_dev;
+#else
 	struct device *dev = &dpi->pdev->dev;
+#endif
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
+#ifndef __NetBSD__
 	int ret;
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
@@ -268,6 +283,7 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 		else
 			return ret;
 	}
+#endif
 
 	if (panel)
 		bridge = drm_panel_bridge_add_typed(panel,
@@ -275,7 +291,42 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 
 	return drm_bridge_attach(dpi->encoder, bridge, NULL);
 }
+#endif
 
+#ifdef __NetBSD__
+static int vc4_match(device_t, cfdata_t, void *);
+static void vc4_attach(device_t, device_t, void *);
+
+static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-dpi",
+	  .data = NULL },
+	DEVICE_COMPAT_EOL
+};
+
+struct vc4dsi_softc {
+	device_t		sc_dev;
+	struct drm_device	*sc_drm_dev;
+};
+
+CFATTACH_DECL_NEW(vc4, sizeof(struct vc4dsi_softc),
+	vc4_match, vc4_attach, NULL, NULL);
+
+/* XXX Kludge to get these from vc4_drv.c.  */
+extern struct drm_driver *const vc4_driver;
+
+static int
+vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+{
+	struct fdt_attach_args * const faa = aux;
+	return of_compatible_match(faa->faa_phandle, compat_data);
+}
+
+static void
+vc4_attach(device_t parent, device_t self, void *aux)
+{
+
+}
+#else
 static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);

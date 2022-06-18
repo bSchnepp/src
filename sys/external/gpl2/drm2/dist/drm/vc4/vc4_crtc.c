@@ -34,6 +34,12 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
+#ifdef __NetBSD__
+#include <dev/fdt/fdtvar.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#endif
+
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/of_device.h>
@@ -1139,6 +1145,51 @@ vc4_crtc_get_cob_allocation(struct vc4_crtc *vc4_crtc)
 	vc4_crtc->cob_size = top - base + 4;
 }
 
+#ifdef __NetBSD__
+
+static int vc4_match(device_t, cfdata_t, void *);
+static void vc4_attach(device_t, device_t, void *);
+
+static const struct vc4_crtc_data pvalve0_data;
+static const struct vc4_crtc_data pvalve1_data;
+static const struct vc4_crtc_data pvalve2_data;
+
+static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-pixelvalve0",
+	  .data = &pvalve0_data },
+	{ .compat = "brcm,bcm2835-pixelvalve1",
+	  .data = &pvalve1_data },
+	{ .compat = "brcm,bcm2835-pixelvalve2",
+	  .data = &pvalve2_data },
+	DEVICE_COMPAT_EOL
+};
+
+struct vc4crtc_softc {
+	device_t		sc_dev;
+	struct drm_device	*sc_drm_dev;
+};
+
+CFATTACH_DECL_NEW(vc4, sizeof(struct vc4crtc_softc),
+	vc4_match, vc4_attach, NULL, NULL);
+
+/* XXX Kludge to get these from vc4_drv.c.  */
+extern struct drm_driver *const vc4_driver;
+
+static int
+vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+{
+	struct fdt_attach_args * const faa = aux;
+	return of_compatible_match(faa->faa_phandle, compat_data);
+}
+
+static void
+vc4_attach(device_t parent, device_t self, void *aux)
+{
+
+}
+
+#else
+
 static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1297,3 +1348,4 @@ struct platform_driver vc4_crtc_driver = {
 		.of_match_table = vc4_crtc_dt_match,
 	},
 };
+#endif

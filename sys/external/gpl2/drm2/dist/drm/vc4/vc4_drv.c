@@ -25,6 +25,14 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
+#ifdef __NetBSD__
+#include <dev/fdt/fdtvar.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+
+#include <linux/platform_device.h>
+#endif
+
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/device.h>
@@ -54,6 +62,14 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #define DRIVER_PATCHLEVEL 0
 
 /* Helper function for mapping the regs on a platform device. */
+#if __NetBSD__
+void vc4_ioremap_regs(struct platform_device *dev, int index, 
+						bus_space_tag_t *bst, 
+						bus_space_handle_t *bsh)
+{
+
+}
+#else
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index)
 {
 	struct resource *res;
@@ -68,6 +84,44 @@ void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index)
 
 	return map;
 }
+#endif
+
+#if __NetBSD__
+static int vc4_match(device_t, cfdata_t, void *);
+static void vc4_attach(device_t, device_t, void *);
+
+static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-vc4",
+	  .data = NULL },
+	{ .compat = "brcm,cygnus-vc4",
+	  .data = NULL },
+	DEVICE_COMPAT_EOL
+};
+
+struct vc4_softc {
+	device_t		sc_dev;
+	struct drm_device	*sc_drm_dev;
+};
+
+CFATTACH_DECL_NEW(vc4, sizeof(struct vc4_softc),
+	vc4_match, vc4_attach, NULL, NULL);
+
+/* XXX Kludge to get these from vc4_drv.c.  */
+extern struct drm_driver *const vc4_drm_driver;
+
+static int
+vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+{
+	struct fdt_attach_args * const faa = aux;
+	return of_compatible_match(faa->faa_phandle, compat_data);
+}
+
+static void
+vc4_attach(device_t parent, device_t self, void *aux)
+{
+
+}
+#else
 
 static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv)
@@ -417,3 +471,4 @@ MODULE_ALIAS("platform:vc4-drm");
 MODULE_DESCRIPTION("Broadcom VC4 DRM Driver");
 MODULE_AUTHOR("Eric Anholt <eric@anholt.net>");
 MODULE_LICENSE("GPL v2");
+#endif

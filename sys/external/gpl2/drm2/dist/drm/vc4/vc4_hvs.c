@@ -26,6 +26,9 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef __NetBSD__
 #include <sys/stdint.h>
+#include <dev/fdt/fdtvar.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #endif
 
 #include <linux/component.h>
@@ -74,13 +77,14 @@ static const struct debugfs_reg32 hvs_regs[] = {
 
 void vc4_hvs_dump_state(struct drm_device *dev)
 {
+#ifdef __NetBSD__
+	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+	int i;
+#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#ifndef __NetBSD__
 	struct drm_printer p = drm_info_printer(&vc4->hvs->pdev->dev);
-#endif
 	int i;
 
-#ifndef __NetBSD__
 	drm_print_regset32(&p, &vc4->hvs->regset);
 #endif
 
@@ -145,7 +149,7 @@ static int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 #define VC4_LINEAR_PHASE_KERNEL_DWORDS 6
 #define VC4_KERNEL_DWORDS (VC4_LINEAR_PHASE_KERNEL_DWORDS * 2 - 1)
 
-#ifndef __NetBSD__
+#if notyet
 /* Recommended B=1/3, C=1/3 filter choice from Mitchell/Netravali.
  * http://www.cs.utexas.edu/~fussell/courses/cs384g/lectures/mitchell/Mitchell.pdf
  */
@@ -197,7 +201,11 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 
 void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)
 {
+#ifdef __NetBSD__
+	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+#endif
 	u32 dispctrl = HVS_READ(SCALER_DISPCTRL);
 
 	dispctrl &= ~SCALER_DISPCTRL_DSPEISLUR(channel);
@@ -207,7 +215,11 @@ void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)
 
 void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel)
 {
+#ifdef __NetBSD__
+	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+#endif
 	u32 dispctrl = HVS_READ(SCALER_DISPCTRL);
 
 	dispctrl |= SCALER_DISPCTRL_DSPEISLUR(channel);
@@ -218,10 +230,13 @@ void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel)
 }
 
 
-#ifndef __NetBSD__
 static void vc4_hvs_report_underrun(struct drm_device *dev)
 {
+#ifdef __NetBSD__
+	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+#endif
 
 	atomic_inc(&vc4->underrun);
 	DRM_DEV_ERROR(dev->dev, "HVS underrun\n");
@@ -234,7 +249,11 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 #endif
 {
 	struct drm_device *dev = data;
+#ifdef __NetBSD__
+	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+#endif
 	irqreturn_t irqret = IRQ_NONE;
 	int channel;
 	u32 control;
@@ -262,6 +281,84 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 	return irqret;
 }
 
+#if __NetBSD__
+
+static int vcfourhvs_match(device_t, cfdata_t, void *);
+static void vcfourhvs_attach(device_t, device_t, void *);
+
+static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-hvs",
+	  .data = NULL },
+	DEVICE_COMPAT_EOL
+};
+
+struct vcfourhvs_softc {
+	device_t		sc_dev;
+	struct drm_device	*sc_drm_dev;
+};
+
+CFATTACH_DECL_NEW(vcfourhvs, sizeof(struct vcfourhvs_softc),
+	vcfourhvs_match, vcfourhvs_attach, NULL, NULL);
+
+/* XXX Kludge to get these from vc4_drv.c.  */
+extern struct drm_driver *vc4_drm_driver;
+
+static int
+vcfourhvs_match(device_t parent, cfdata_t cfdata, void *aux)
+{
+	struct fdt_attach_args * const faa = aux;
+	return of_compatible_match(faa->faa_phandle, compat_data);
+}
+
+static void
+vcfourhvs_attach(device_t parent, device_t self, void *aux)
+{
+	struct platform_device *pdev = NULL;
+	struct vcfourhvs_softc *const sc = device_private(self);
+	struct fdt_attach_args * const faa = aux;
+
+	const int phandle = faa->faa_phandle;
+	bus_addr_t addr;
+	bus_size_t size;
+	int error;
+
+	sc->sc_dev = self;
+	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
+	if (IS_ERR(sc->sc_drm_dev)) {
+		aprint_error_dev(self, "unable to create drm device: %ld\n",
+		    PTR_ERR(sc->sc_drm_dev));
+		sc->sc_drm_dev = NULL;
+		return;
+	}
+
+	sc->sc_drm_dev->bst = faa->faa_bst;
+	sc->sc_drm_dev->dmat = faa->faa_dmat;
+	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
+		aprint_error(": couldn't get registers\n");
+		return;
+	}
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
+
+	pdev = to_platform_device(sc->sc_dev);
+	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
+			       vc4_hvs_irq_handler, 0, "vc4 hvs", sc->sc_drm_dev);
+	if (error) {
+		aprint_error_dev(self, "unable to register vc4 irq: %d\n", error);
+		return;
+	}
+}
+
+#else
+
 static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -277,7 +374,6 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 
 	hvs->pdev = pdev;
 
-#ifndef __NetBSD__
 	hvs->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(hvs->regs))
 		return PTR_ERR(hvs->regs);
@@ -287,7 +383,6 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
 
 	hvs->dlist = hvs->regs + SCALER_DLIST_START;
-#endif
 
 	spin_lock_init(&hvs->mm_lock);
 
@@ -405,4 +500,5 @@ struct platform_driver vc4_hvs_driver = {
 		.of_match_table = vc4_hvs_dt_match,
 	},
 };
+
 #endif

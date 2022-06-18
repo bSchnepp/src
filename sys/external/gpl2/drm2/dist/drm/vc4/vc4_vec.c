@@ -18,6 +18,12 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
+#ifdef __NetBSD__
+#include <dev/fdt/fdtvar.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#endif
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_panel.h>
@@ -258,7 +264,7 @@ static const struct debugfs_reg32 vec_regs[] = {
 	VC4_REG32(VEC_DAC_MISC),
 };
 #endif
-#ifndef __NetBSD__
+
 static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
 {
 	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_NTSC_STD | VEC_CONFIG0_PDEN);
@@ -523,6 +529,137 @@ static int vc4_vec_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
+#ifdef __NetBSD__
+static int vc4_match(device_t, cfdata_t, void *);
+static void vc4_attach(device_t, device_t, void *);
+
+static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-dpi",
+	  .data = NULL },
+	DEVICE_COMPAT_EOL
+};
+
+static const char * const tv_mode_names[] = {
+	[VC4_VEC_TV_MODE_NTSC] = "NTSC",
+	[VC4_VEC_TV_MODE_NTSC_J] = "NTSC-J",
+	[VC4_VEC_TV_MODE_PAL] = "PAL",
+	[VC4_VEC_TV_MODE_PAL_M] = "PAL-M",
+};
+
+struct vc4vec_softc {
+	device_t		sc_dev;
+	struct drm_device	*sc_drm_dev;
+};
+
+CFATTACH_DECL_NEW(vc4, sizeof(struct vc4vec_softc),
+	vc4_match, vc4_attach, NULL, NULL);
+
+/* XXX Kludge to get these from vc4_drv.c.  */
+extern struct drm_driver *const vc4_drm_driver;
+
+static int
+vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+{
+	struct fdt_attach_args * const faa = aux;
+	return of_compatible_match(faa->faa_phandle, compat_data);
+}
+
+static void
+vc4_attach(device_t parent, device_t self, void *aux)
+{
+	struct platform_device *pdev = NULL;
+	struct vc4vec_softc *const sc = device_private(self);
+	struct fdt_attach_args * const faa = aux;
+	struct vc4_vec *vec;
+	struct vc4_vec_encoder *vc4_vec_encoder;
+
+	const int phandle = faa->faa_phandle;
+	bus_addr_t addr;
+	bus_size_t size;
+	int error;
+
+	sc->sc_dev = self;
+	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
+	if (IS_ERR(sc->sc_drm_dev)) {
+		aprint_error_dev(self, "unable to create drm device: %ld\n",
+		    PTR_ERR(sc->sc_drm_dev));
+		sc->sc_drm_dev = NULL;
+		return;
+	}
+
+	sc->sc_drm_dev->bst = faa->faa_bst;
+	sc->sc_drm_dev->dmat = faa->faa_dmat;
+	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
+		aprint_error(": couldn't get registers\n");
+		return;
+	}
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
+
+	error = -drm_mode_create_tv_properties(sc->sc_drm_dev, ARRAY_SIZE(tv_mode_names),
+					    tv_mode_names);
+	if (error) {
+		aprint_error_dev(self, "unable to register tv properties: %d\n", error);
+		return;
+	}
+
+	vec = devm_kzalloc(sc->sc_dev, sizeof(*vec), GFP_KERNEL);
+	if (!vec) {
+		aprint_error_dev(self, "unable to initialize vc3 vec module: %d\n", ENOMEM);
+		return;		
+	}
+
+	vc4_vec_encoder = devm_kzalloc(sc->sc_dev, sizeof(*vc4_vec_encoder),
+				       GFP_KERNEL);
+	if (!vc4_vec_encoder) {
+		aprint_error_dev(self, "unable to initialize vc3 vec encoder module: %d\n", ENOMEM);
+		return;		
+	}
+	vc4_vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
+	vc4_vec_encoder->vec = vec;
+	vec->encoder = &vc4_vec_encoder->base.base;
+	vec->pdev = pdev;
+	vec->regs = vc4_ioremap_regs(pdev, 0);
+	if (IS_ERR(vec->regs))
+		return PTR_ERR(vec->regs);
+
+	vec->regset.base = vec->regs;
+	vec->regset.regs = vec_regs;
+	vec->regset.nregs = ARRAY_SIZE(vec_regs);
+	vec->clock = devm_clk_get(sc->sc_dev, NULL);
+	if (IS_ERR(vec->clock)) {
+		ret = PTR_ERR(vec->clock);
+		if (ret != -EPROBE_DEFER)
+			DRM_ERROR("Failed to get clock: %d\n", ret);
+		return ret;
+	}
+
+	pm_runtime_enable(sc->sc_dev);
+
+	drm_encoder_init(drm, vec->encoder, &vc4_vec_encoder_funcs,
+			 DRM_MODE_ENCODER_TVDAC, NULL);
+	drm_encoder_helper_add(vec->encoder, &vc4_vec_encoder_helper_funcs);
+
+	vec->connector = vc4_vec_connector_init(drm, vec);
+	if (IS_ERR(vec->connector)) {
+		ret = PTR_ERR(vec->connector);
+		goto err_destroy_encoder;
+	}
+
+	dev_set_drvdata(sc->sc_dev, vec);
+
+	vc4->vec = vec;
+	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
+}
+#else
 static const struct drm_encoder_helper_funcs vc4_vec_encoder_helper_funcs = {
 	.disable = vc4_vec_encoder_disable,
 	.enable = vc4_vec_encoder_enable,
@@ -545,10 +682,7 @@ static const char * const tv_mode_names[] = {
 
 static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 {
-
-#ifndef __NetBSD__
 	struct platform_device *pdev = to_platform_device(dev);
-#endif
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_vec *vec;
@@ -571,18 +705,14 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	vc4_vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
 	vc4_vec_encoder->vec = vec;
 	vec->encoder = &vc4_vec_encoder->base.base;
-#ifndef __NetBSD__
 	vec->pdev = pdev;
 	vec->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vec->regs))
 		return PTR_ERR(vec->regs);
-#endif
 
-#ifndef __NetBSD__
 	vec->regset.base = vec->regs;
 	vec->regset.regs = vec_regs;
 	vec->regset.nregs = ARRAY_SIZE(vec_regs);
-#endif
 	vec->clock = devm_clk_get(dev, NULL);
 	if (IS_ERR(vec->clock)) {
 		ret = PTR_ERR(vec->clock);
@@ -591,9 +721,7 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-#ifndef __NetBSD__
 	pm_runtime_enable(dev);
-#endif
 
 	drm_encoder_init(drm, vec->encoder, &vc4_vec_encoder_funcs,
 			 DRM_MODE_ENCODER_TVDAC, NULL);
@@ -605,14 +733,10 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 		goto err_destroy_encoder;
 	}
 
-#ifndef __NetBSD__
 	dev_set_drvdata(dev, vec);
-#endif
 
 	vc4->vec = vec;
-#ifndef __NetBSD__
 	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
-#endif
 	return 0;
 
 err_destroy_encoder:
@@ -635,9 +759,7 @@ static void vc4_vec_unbind(struct device *dev, struct device *master,
 
 	vc4->vec = NULL;
 }
-#endif
 
-#ifndef __NetBSD__
 static const struct component_ops vc4_vec_ops = {
 	.bind   = vc4_vec_bind,
 	.unbind = vc4_vec_unbind,
