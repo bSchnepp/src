@@ -612,7 +612,7 @@ struct vc4_plane_state {
 	/* Offset where the plane's dlist was last stored in the
 	 * hardware at vc4_crtc_atomic_flush() time.
 	 */
-#ifndef __NetBSD__
+#ifdef __NetBSD__
 	bus_space_tag_t hw_dlist_bst;
 	bus_space_handle_t hw_dlist_bsh;
 #else
@@ -1123,10 +1123,10 @@ int vc4_kms_load(struct drm_device *dev);
 struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				 enum drm_plane_type type);
 #ifdef __NetBSD__
-u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist);
-#else
 u32 vc4_plane_write_dlist(struct drm_plane *plane, bus_space_tag_t dlist_bst,
     bus_space_handle_t dlist_bsh);
+#else
+u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist);
 #endif
 u32 vc4_plane_dlist_size(const struct drm_plane_state *state);
 void vc4_plane_async_set_fb(struct drm_plane *plane,

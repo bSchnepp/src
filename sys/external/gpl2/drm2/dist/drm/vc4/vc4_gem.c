@@ -26,6 +26,10 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
+#ifdef __NetBSD__
+#include <linux/wait.h>
+#endif
+
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -392,6 +396,7 @@ int
 vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 		   bool interruptible)
 {
+#ifndef __NetBSD__
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret = 0;
 	unsigned long timeout_expire;
@@ -434,6 +439,8 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 	trace_vc4_wait_for_seqno_end(dev, seqno);
 
 	return ret;
+#endif
+	return 0;
 }
 
 static void
@@ -1013,7 +1020,9 @@ void
 vc4_job_handle_completed(struct vc4_dev *vc4)
 {
 	unsigned long irqflags;
+#ifdef notyet
 	struct vc4_seqno_cb *cb, *cb_temp;
+#endif
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	while (!list_empty(&vc4->job_done_list)) {
@@ -1027,12 +1036,14 @@ vc4_job_handle_completed(struct vc4_dev *vc4)
 		spin_lock_irqsave(&vc4->job_lock, irqflags);
 	}
 
+#ifdef notyet
 	list_for_each_entry_safe(cb, cb_temp, &vc4->seqno_cb_list, work.entry) {
 		if (cb->seqno <= vc4->finished_seqno) {
 			list_del_init(&cb->work.entry);
 			schedule_work(&cb->work);
 		}
 	}
+#endif
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 }
@@ -1056,12 +1067,21 @@ int vc4_queue_seqno_cb(struct drm_device *dev,
 	INIT_WORK(&cb->work, vc4_seqno_cb_work);
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
+#ifdef __NetBSD__
+	if (seqno > vc4->finished_seqno) {
+		cb->seqno = seqno;
+		list_add_tail((struct list_head *)&cb->work.work_entry, &vc4->seqno_cb_list);
+	} else {
+		schedule_work(&cb->work);
+	}
+#else
 	if (seqno > vc4->finished_seqno) {
 		cb->seqno = seqno;
 		list_add_tail(&cb->work.entry, &vc4->seqno_cb_list);
 	} else {
 		schedule_work(&cb->work);
 	}
+#endif
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
 	return ret;
@@ -1089,7 +1109,7 @@ vc4_wait_for_seqno_ioctl_helper(struct drm_device *dev,
 	int ret = vc4_wait_for_seqno(dev, seqno, *timeout_ns, true);
 
 	if ((ret == -EINTR || ret == -ERESTARTSYS) && *timeout_ns != ~0ull) {
-		uint64_t delta = jiffies_to_nsecs(jiffies - start);
+		uint64_t delta = jiffies_to_usecs(jiffies - start);
 
 		if (*timeout_ns >= delta)
 			*timeout_ns -= delta;
@@ -1211,6 +1231,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 		if (ret)
 			goto fail;
 
+#ifndef __NetBSD__
 		/* When the fence (or fence array) is exclusively from our
 		 * context we can skip the wait since jobs are executed in
 		 * order of their submission through this ioctl and this can
@@ -1224,6 +1245,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 				goto fail;
 			}
 		}
+#endif
 
 		dma_fence_put(in_fence);
 	}

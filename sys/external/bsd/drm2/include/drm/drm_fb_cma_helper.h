@@ -26,7 +26,17 @@
  * SUCH DAMAGE.
  */
 
+#include <linux/types.h>
+#include <drm/drm_gem_cma_helper.h>
+
 #ifndef _DRM_DRM_FB_CMA_HELPER_H_
 #define _DRM_DRM_FB_CMA_HELPER_H_
+
+inline static
+struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fbuf, 
+						  unsigned int plane)
+{
+	return 0;
+}
 
 #endif

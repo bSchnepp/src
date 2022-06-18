@@ -20,6 +20,10 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
+#ifdef __NetBSD__
+#include <drm/drm_fb_cma_helper.h>
+#endif
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
@@ -180,7 +184,7 @@ static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane
 static void vc4_plane_destroy_state(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(plane->dev);
+	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(plane->dev);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 
 	if (drm_mm_node_allocated(&vc4_state->lbm)) {
@@ -333,8 +337,13 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	if (ret)
 		return ret;
 
+#ifdef __NetBSD__
+	for (i = 0; i < num_planes; i++)
+		vc4_state->offsets[i] = bo->dmasegs[0].ds_addr + fb->offsets[i];
+#else
 	for (i = 0; i < num_planes; i++)
 		vc4_state->offsets[i] = bo->paddr + fb->offsets[i];
+#endif
 
 	/* We don't support subpixel source positioning for scaling. */
 	if ((state->src.x1 & subpixel_src_mask) ||
@@ -547,7 +556,7 @@ static void vc4_plane_calc_load(struct drm_plane_state *state)
 
 static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(state->plane->dev);
+	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(state->plane->dev);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	unsigned long irqflags;
 	u32 lbm_size;
@@ -588,7 +597,7 @@ static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 static int vc4_plane_mode_set(struct drm_plane *plane,
 			      struct drm_plane_state *state)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(plane->dev);
+	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(plane->dev);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	u32 ctl0_offset = vc4_state->dlist_count;
@@ -1020,13 +1029,19 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	 * because this is only called on the primary plane.
 	 */
 	WARN_ON_ONCE(plane->state->crtc_x < 0 || plane->state->crtc_y < 0);
+#ifdef __NetBSD__
+	addr = bo->dmasegs[0].ds_addr + fb->offsets[0];
+#else
 	addr = bo->paddr + fb->offsets[0];
+#endif
 
 	/* Write the new address into the hardware immediately.  The
 	 * scanout will start from this address as soon as the FIFO
 	 * needs to refill with pixels.
 	 */
+#ifdef notyet
 	writel(addr, &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
+#endif
 
 	/* Also update the CPU-side dlist copy, so that any later
 	 * atomic updates that don't do a new modeset on our plane
@@ -1096,12 +1111,14 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 	 * because that would smash the context data that the HVS is
 	 * currently using.
 	 */
+#ifdef notyet
 	writel(vc4_state->dlist[vc4_state->pos0_offset],
 	       &vc4_state->hw_dlist[vc4_state->pos0_offset]);
 	writel(vc4_state->dlist[vc4_state->pos2_offset],
 	       &vc4_state->hw_dlist[vc4_state->pos2_offset]);
 	writel(vc4_state->dlist[vc4_state->ptr0_offset],
 	       &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
+#endif
 }
 
 static int vc4_plane_atomic_async_check(struct drm_plane *plane,
@@ -1251,7 +1268,9 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct vc4_plane *vc4_plane;
 	u32 formats[ARRAY_SIZE(hvs_formats)];
+#ifndef __NetBSD__
 	int ret = 0;
+#endif
 	unsigned i;
 	static const uint64_t modifiers[] = {
 		DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED,
@@ -1271,10 +1290,17 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 		formats[i] = hvs_formats[i].drm;
 
 	plane = &vc4_plane->base;
+#ifdef __NetBSD__
+	drm_universal_plane_init(dev, plane, 0,
+				       &vc4_plane_funcs,
+				       formats, ARRAY_SIZE(formats),
+				       modifiers, type, NULL);
+#else
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
 				       modifiers, type, NULL);
+#endif
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
