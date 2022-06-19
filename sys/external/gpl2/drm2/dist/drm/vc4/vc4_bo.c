@@ -296,25 +296,22 @@ void vc4_bo_remove_from_purgeable_pool(struct vc4_bo *bo)
 	mutex_unlock(&vc4->purgeable.lock);
 }
 
-#ifndef __NetBSD__
 static void vc4_bo_purge(struct drm_gem_object *obj)
 {
 	struct vc4_bo *bo = to_vc4_bo(obj);
-#ifndef __NetBSD__
 	struct drm_device *dev = obj->dev;
-#endif
 
 	WARN_ON(!mutex_is_locked(&bo->madv_lock));
 	WARN_ON(bo->madv != VC4_MADV_DONTNEED);
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.dmamap);
+#else
 	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
-
 	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.paddr);
 #endif
 	bo->base.vaddr = NULL;
 	bo->madv = __VC4_MADV_PURGED;
 }
-#endif
 
 static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 {
@@ -324,9 +321,7 @@ static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 	while (!list_empty(&vc4->purgeable.list)) {
 		struct vc4_bo *bo = list_first_entry(&vc4->purgeable.list,
 						     struct vc4_bo, size_head);
-#ifndef __NetBSD__
 		struct drm_gem_object *obj = &bo->base.base;
-#endif
 		size_t purged_size = 0;
 
 		vc4_bo_remove_from_purgeable_pool_locked(bo);
@@ -348,14 +343,12 @@ static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 		 * - it is not used by HW blocks
 		 * If one of these conditions is not met, just skip the entry.
 		 */
-#ifndef __NetBSD__
 		if (bo->madv == VC4_MADV_DONTNEED &&
 		    list_empty(&bo->size_head) &&
 		    !refcount_read(&bo->usecnt)) {
 			purged_size = bo->base.base.size;
 			vc4_bo_purge(obj);
 		}
-#endif
 		mutex_unlock(&bo->madv_lock);
 		mutex_lock(&vc4->purgeable.lock);
 

@@ -585,9 +585,7 @@ reloc_tex(struct vc4_exec_info *exec,
 		       *(uint32_t *)(uniform_data_u + sample->p_offset[2]) : 0);
 	uint32_t p3 = (sample->p_offset[3] != ~0 ?
 		       *(uint32_t *)(uniform_data_u + sample->p_offset[3]) : 0);
-#ifndef __NetBSD__
 	uint32_t *validated_p0 = exec->uniforms_v + sample->p_offset[0];
-#endif
 	uint32_t offset = p0 & VC4_TEX_P0_OFFSET_MASK;
 	uint32_t miplevels = VC4_GET_FIELD(p0, VC4_TEX_P0_MIPLVLS);
 	uint32_t width = VC4_GET_FIELD(p1, VC4_TEX_P1_WIDTH);
@@ -613,7 +611,9 @@ reloc_tex(struct vc4_exec_info *exec,
 				  "outside of UBO\n");
 			goto fail;
 		}
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+		*validated_p0 = tex->dmasegs[0].ds_addr + p0;
+#else
 		*validated_p0 = tex->paddr + p0;
 #endif
 		return true;
@@ -743,7 +743,9 @@ reloc_tex(struct vc4_exec_info *exec,
 		offset -= level_size;
 	}
 
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+	*validated_p0 = tex->dmasegs[0].ds_addr + p0;
+#else
 	*validated_p0 = tex->paddr + p0;
 #endif
 
@@ -849,7 +851,9 @@ validate_gl_shader_rec(struct drm_device *dev,
 		void *uniform_data_u;
 		uint32_t tex, uni;
 
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+		*(uint32_t *)(pkt_v + o) = bo[i]->dmasegs[0].ds_addr + src_offset;
+#else
 		*(uint32_t *)(pkt_v + o) = bo[i]->paddr + src_offset;
 #endif
 
@@ -939,7 +943,9 @@ validate_gl_shader_rec(struct drm_device *dev,
 			}
 		}
 
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+		*(uint32_t *)(pkt_v + 0) = vbo->dmasegs[0].ds_addr + offset;
+#else
 		*(uint32_t *)(pkt_v + o) = vbo->paddr + offset;
 #endif
 	}

@@ -627,21 +627,23 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	vc4_vec_encoder->vec = vec;
 	vec->encoder = &vc4_vec_encoder->base.base;
 	vec->pdev = pdev;
+#ifdef __NetBSD__
+	vc4_ioremap_regs(pdev, 0, &vec->bst, &vec->bsh);
+#else
 	vec->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vec->regs))
 		return PTR_ERR(vec->regs);
+#endif
 
-	vec->regset.base = vec->regs;
-	vec->regset.regs = vec_regs;
-	vec->regset.nregs = ARRAY_SIZE(vec_regs);
 	vec->clock = devm_clk_get(sc->sc_dev, NULL);
 	if (IS_ERR(vec->clock)) {
-		ret = PTR_ERR(vec->clock);
-		if (ret != -EPROBE_DEFER)
-			DRM_ERROR("Failed to get clock: %d\n", ret);
-		return ret;
+		error = PTR_ERR(vec->clock);
+		if (error != -EPROBE_DEFER)
+			DRM_ERROR("Failed to get clock: %d\n", error);
+		return;
 	}
 
+#ifdef notyet
 	pm_runtime_enable(sc->sc_dev);
 
 	drm_encoder_init(drm, vec->encoder, &vc4_vec_encoder_funcs,
@@ -650,7 +652,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	vec->connector = vc4_vec_connector_init(drm, vec);
 	if (IS_ERR(vec->connector)) {
-		ret = PTR_ERR(vec->connector);
+		error = PTR_ERR(vec->connector);
 		goto err_destroy_encoder;
 	}
 
@@ -658,6 +660,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	vc4->vec = vec;
 	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
+#endif
 }
 #else
 static const struct drm_encoder_helper_funcs vc4_vec_encoder_helper_funcs = {
