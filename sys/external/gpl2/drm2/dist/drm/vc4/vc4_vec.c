@@ -265,6 +265,7 @@ static const struct debugfs_reg32 vec_regs[] = {
 };
 #endif
 
+#ifdef notyet
 static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
 {
 	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_NTSC_STD | VEC_CONFIG0_PDEN);
@@ -496,7 +497,6 @@ static void vc4_vec_encoder_enable(struct drm_encoder *encoder)
 	VEC_WRITE(VEC_CFG, VEC_CFG_VEC_EN);
 }
 
-
 static bool vc4_vec_encoder_mode_fixup(struct drm_encoder *encoder,
 				       const struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
@@ -528,6 +528,7 @@ static int vc4_vec_encoder_atomic_check(struct drm_encoder *encoder,
 
 	return 0;
 }
+#endif
 
 #ifdef __NetBSD__
 static int vc4_match(device_t, cfdata_t, void *);

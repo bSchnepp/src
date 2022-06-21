@@ -119,7 +119,39 @@ vc4_match(device_t parent, cfdata_t cfdata, void *aux)
 static void
 vc4_attach(device_t parent, device_t self, void *aux)
 {
+	struct vc4_softc *const sc = device_private(self);
+	struct fdt_attach_args * const faa = aux;
 
+	const int phandle = faa->faa_phandle;
+	bus_addr_t addr;
+	bus_size_t size;
+	int error;
+
+	sc->sc_dev = self;
+	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
+	if (IS_ERR(sc->sc_drm_dev)) {
+		aprint_error_dev(self, "unable to create drm device: %ld\n",
+		    PTR_ERR(sc->sc_drm_dev));
+		sc->sc_drm_dev = NULL;
+		return;
+	}
+
+	sc->sc_drm_dev->bst = faa->faa_bst;
+	sc->sc_drm_dev->dmat = faa->faa_dmat;
+	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
+		aprint_error(": couldn't get registers\n");
+		return;
+	}
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
 }
 #else
 
@@ -336,11 +368,7 @@ static int vc4_drm_bind(struct device *dev)
 	drm->dev_private = vc4;
 	INIT_LIST_HEAD(&vc4->debugfs_list);
 
-#ifdef __NetBSD__
-	linux_mutex_init(&vc4->bin_bo_lock);
-#else
 	mutex_init(&vc4->bin_bo_lock);
-#endif
 
 	ret = vc4_bo_cache_init(drm);
 	if (ret)

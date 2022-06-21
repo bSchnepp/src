@@ -284,7 +284,8 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 #ifdef __NetBSD__
 		/* Check if this BO won't trigger the addressing bug. */
 		if ((bo->base.dmasegs[0].ds_addr & 0xf0000000) ==
-		    ((bo->base.dmasegs[0].ds_addr + bo->base.base.size - 1) & 0xf0000000)) {
+		    ((bo->base.dmasegs[0].ds_addr + bo->base.base.size - 1) 
+		    & 0xf0000000)) {
 			vc4->bin_bo = bo;
 #else
 		/* Check if this BO won't trigger the addressing bug. */
@@ -415,7 +416,76 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 }
 #endif
 
-#ifndef __NetBSD__
+
+
+#if __NetBSD__
+
+static int vcfourhvs_match(device_t, cfdata_t, void *);
+static void vcfourhvs_attach(device_t, device_t, void *);
+
+static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-hvs",
+	  .data = NULL },
+	DEVICE_COMPAT_EOL
+};
+
+struct vcfourv3d_softc {
+	device_t		sc_dev;
+	struct drm_device	*sc_drm_dev;
+};
+
+CFATTACH_DECL_NEW(vcfourv3d, sizeof(struct vcfourv3d_softc),
+	vcfourhvs_match, vcfourhvs_attach, NULL, NULL);
+
+/* XXX Kludge to get these from vc4_drv.c.  */
+extern struct drm_driver *vc4_drm_driver;
+
+static int
+vcfourhvs_match(device_t parent, cfdata_t cfdata, void *aux)
+{
+	struct fdt_attach_args * const faa = aux;
+	return of_compatible_match(faa->faa_phandle, compat_data);
+}
+
+static void
+vcfourhvs_attach(device_t parent, device_t self, void *aux)
+{
+	struct vcfourv3d_softc *const sc = device_private(self);
+	struct fdt_attach_args * const faa = aux;
+
+	const int phandle = faa->faa_phandle;
+	bus_addr_t addr;
+	bus_size_t size;
+	int error;
+
+	sc->sc_dev = self;
+	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
+	if (IS_ERR(sc->sc_drm_dev)) {
+		aprint_error_dev(self, "unable to create drm device: %ld\n",
+		    PTR_ERR(sc->sc_drm_dev));
+		sc->sc_drm_dev = NULL;
+		return;
+	}
+
+	sc->sc_drm_dev->bst = faa->faa_bst;
+	sc->sc_drm_dev->dmat = faa->faa_dmat;
+	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
+		aprint_error(": couldn't get registers\n");
+		return;
+	}
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
+}
+
+#else
 static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -435,11 +505,9 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	v3d->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(v3d->regs))
 		return PTR_ERR(v3d->regs);
-#ifndef __NetBSD__
 	v3d->regset.base = v3d->regs;
 	v3d->regset.regs = v3d_regs;
 	v3d->regset.nregs = ARRAY_SIZE(v3d_regs);
-#endif
 
 	vc4->v3d = v3d;
 	v3d->vc4 = vc4;
@@ -489,10 +557,8 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	pm_runtime_set_autosuspend_delay(dev, 40); /* a little over 2 frames. */
 	pm_runtime_enable(dev);
 
-#ifndef __NetBSD__
 	vc4_debugfs_add_file(drm, "v3d_ident", vc4_v3d_debugfs_ident, NULL);
 	vc4_debugfs_add_regset32(drm, "v3d_regs", &v3d->regset);
-#endif
 	return 0;
 }
 

@@ -802,7 +802,15 @@ int vc4_prime_mmap(struct drm_gem_object *obj, off_t *offp, size_t len,
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 #endif
 {
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+	struct vc4_bo *bo = to_vc4_bo(obj);
+
+	if (bo->validated_shader) {
+		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
+		return -EINVAL;
+	}
+	return drm_gem_cma_prime_mmap(obj, offp, len, 0, flagsp, advicep, uobjp, maxprotp);
+#else
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
@@ -812,7 +820,6 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 
 	return drm_gem_cma_prime_mmap(obj, vma);
 #endif
-	return drm_gem_cma_prime_mmap(obj, offp, len, 0, flagsp, advicep, uobjp, maxprotp);
 }
 
 void *vc4_prime_vmap(struct drm_gem_object *obj)

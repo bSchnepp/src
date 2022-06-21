@@ -394,7 +394,74 @@ static irqreturn_t vc4_txp_interrupt(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+#endif
 
+#ifdef __NetBSD__
+static int vc4_match(device_t, cfdata_t, void *);
+static void vc4_attach(device_t, device_t, void *);
+
+static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-txp",
+	  .data = (void *)((uintptr_t)(1)) },
+	DEVICE_COMPAT_EOL
+};
+
+struct vc4txp_softc {
+	device_t		sc_dev;
+	struct drm_device	*sc_drm_dev;
+};
+
+CFATTACH_DECL_NEW(vc4, sizeof(struct vc4txp_softc),
+	vc4_match, vc4_attach, NULL, NULL);
+
+/* XXX Kludge to get these from vc4_drv.c.  */
+extern struct drm_driver *const vc4_drm_driver;
+
+static int
+vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+{
+	struct fdt_attach_args * const faa = aux;
+	return of_compatible_match(faa->faa_phandle, compat_data);
+}
+
+static void
+vc4_attach(device_t parent, device_t self, void *aux)
+{
+	struct vc4txp_softc *const sc = device_private(self);
+	struct fdt_attach_args * const faa = aux;
+
+	const int phandle = faa->faa_phandle;
+	bus_addr_t addr;
+	bus_size_t size;
+	int error;
+
+	sc->sc_dev = self;
+	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
+	if (IS_ERR(sc->sc_drm_dev)) {
+		aprint_error_dev(self, "unable to create drm device: %ld\n",
+		    PTR_ERR(sc->sc_drm_dev));
+		sc->sc_drm_dev = NULL;
+		return;
+	}
+
+	sc->sc_drm_dev->bst = faa->faa_bst;
+	sc->sc_drm_dev->dmat = faa->faa_dmat;
+	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
+		aprint_error(": couldn't get registers\n");
+		return;
+	}
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
+}
+#else
 static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);

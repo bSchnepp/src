@@ -303,16 +303,16 @@ static const struct device_compatible_entry compat_data[] = {
 	DEVICE_COMPAT_EOL
 };
 
-struct vc4dsi_softc {
+struct vc4dpi_softc {
 	device_t		sc_dev;
 	struct drm_device	*sc_drm_dev;
 };
 
-CFATTACH_DECL_NEW(vc4, sizeof(struct vc4dsi_softc),
+CFATTACH_DECL_NEW(vc4, sizeof(struct vc4dpi_softc),
 	vc4_match, vc4_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_driver;
+extern struct drm_driver *const vc4_drm_driver;
 
 static int
 vc4_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -324,7 +324,39 @@ vc4_match(device_t parent, cfdata_t cfdata, void *aux)
 static void
 vc4_attach(device_t parent, device_t self, void *aux)
 {
+	struct vc4dpi_softc *const sc = device_private(self);
+	struct fdt_attach_args * const faa = aux;
 
+	const int phandle = faa->faa_phandle;
+	bus_addr_t addr;
+	bus_size_t size;
+	int error;
+
+	sc->sc_dev = self;
+	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
+	if (IS_ERR(sc->sc_drm_dev)) {
+		aprint_error_dev(self, "unable to create drm device: %ld\n",
+		    PTR_ERR(sc->sc_drm_dev));
+		sc->sc_drm_dev = NULL;
+		return;
+	}
+
+	sc->sc_drm_dev->bst = faa->faa_bst;
+	sc->sc_drm_dev->dmat = faa->faa_dmat;
+	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
+		aprint_error(": couldn't get registers\n");
+		return;
+	}
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
 }
 #else
 static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
@@ -352,11 +384,11 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	dpi->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(dpi->regs))
 		return PTR_ERR(dpi->regs);
-#ifndef __NetBSD__
+
 	dpi->regset.base = dpi->regs;
 	dpi->regset.regs = dpi_regs;
 	dpi->regset.nregs = ARRAY_SIZE(dpi_regs);
-#endif
+
 	if (DPI_READ(DPI_ID) != DPI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
 			DPI_READ(DPI_ID), DPI_ID_VALUE);
@@ -393,9 +425,7 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	dev_set_drvdata(dev, dpi);
 
 	vc4->dpi = dpi;
-#ifndef __NetBSD__
 	vc4_debugfs_add_regset32(drm, "dpi_regs", &dpi->regset);
-#endif
 	return 0;
 
 err_destroy_encoder:

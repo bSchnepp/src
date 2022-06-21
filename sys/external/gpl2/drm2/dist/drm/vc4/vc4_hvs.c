@@ -93,10 +93,14 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 #ifdef __NetBSD__
 		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
-			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 0),
-			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 1),
-			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 2),
-			 bus_space_read_4(vc4->hvs->dlist_bst, vc4->hvs->dlist_bsh, i + 3));
+			 bus_space_read_4(vc4->hvs->dlist_bst, 
+			 	vc4->hvs->dlist_bsh, i + 0),
+			 bus_space_read_4(vc4->hvs->dlist_bst, 
+			 	vc4->hvs->dlist_bsh, i + 1),
+			 bus_space_read_4(vc4->hvs->dlist_bst, 
+			 	vc4->hvs->dlist_bsh, i + 2),
+			 bus_space_read_4(vc4->hvs->dlist_bst, 
+			 	vc4->hvs->dlist_bsh, i + 3));
 #else
 		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
@@ -149,7 +153,6 @@ static int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 #define VC4_LINEAR_PHASE_KERNEL_DWORDS 6
 #define VC4_KERNEL_DWORDS (VC4_LINEAR_PHASE_KERNEL_DWORDS * 2 - 1)
 
-#if notyet
 /* Recommended B=1/3, C=1/3 filter choice from Mitchell/Netravali.
  * http://www.cs.utexas.edu/~fussell/courses/cs384g/lectures/mitchell/Mitchell.pdf
  */
@@ -177,9 +180,12 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 #ifdef __NetBSD__
 	for (i = 0; i < VC4_KERNEL_DWORDS; i++) {
 		if (i < VC4_LINEAR_PHASE_KERNEL_DWORDS)
-			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, space->start + i, kernel[i]);
+			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, 
+				space->start + i, kernel[i]);
 		else {
-			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, space->start + i, kernel[VC4_KERNEL_DWORDS - i - 1]);
+			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, 
+				space->start + i, 
+				kernel[VC4_KERNEL_DWORDS - i - 1]);
 		}
 	}
 #else
@@ -197,7 +203,6 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 
 	return 0;
 }
-#endif
 
 void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)
 {
@@ -313,7 +318,8 @@ vcfourhvs_match(device_t parent, cfdata_t cfdata, void *aux)
 static void
 vcfourhvs_attach(device_t parent, device_t self, void *aux)
 {
-	struct platform_device *pdev = NULL;
+	struct vc4_hvs *hvs = NULL;
+	struct platform_device *pdev = NULL; 
 	struct vcfourhvs_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
 
@@ -338,6 +344,56 @@ vcfourhvs_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	/* At any time, the GPU on a bcm2835 (or compatible) device should
+	 * always be present if it will be present at boot time, and never
+	 * disappear from the system.
+	 * 
+	 * In other words, the initialization of the GPU will be done precisely
+	 * once when the driver is loaded, and uninitialization done only
+	 * at shutdown. No other conditions are possible.
+	 */
+
+	hvs = devm_kzalloc(sc->sc_dev, sizeof(*hvs), GFP_KERNEL);
+	if (!hvs) {
+		aprint_error_dev(self, "unable to allocate hvs: %d\n", 
+			ENOMEM);
+		return;
+	}
+
+	hvs->pdev = pdev;
+	vc4_ioremap_regs(pdev, 0, &hvs->bst, &hvs->bsh);
+	if (IS_ERR(hvs->bst)) {
+		aprint_error_dev(self, "unable to map regs: %d\n", 
+			EINVAL);
+		return;		
+	}
+
+	spin_lock_init(&hvs->mm_lock);
+
+	/* TODO: Correct dlist. Refer to dma (9) for information that needs
+	 * to be used in relation to hvs->bst and hvs->bsh.
+	 */
+
+	/* Some memory management now has to be done. */
+
+	/* To use these functions, this will be placed here.
+	 * Other initialization has to be done first for this to
+	 * function correctly!
+	 */
+	error = vc4_hvs_upload_linear_kernel(hvs,
+					   &hvs->mitchell_netravali_filter,
+					   mitchell_netravali_1_3_1_3_kernel);
+
+	pdev = to_platform_device(sc->sc_dev);
+	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
+			       vc4_hvs_irq_handler, 0, "vc4 hvs", 
+			       sc->sc_drm_dev);
+	if (error) {
+		aprint_error_dev(self, "unable to register irq: %d\n", 
+			error);
+		return;
+	}
+
 	/* XXX errno Linux->NetBSD */
 	error = -drm_dev_register(sc->sc_drm_dev, 0);
 	if (error) {
@@ -347,14 +403,6 @@ vcfourhvs_attach(device_t parent, device_t self, void *aux)
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
-
-	pdev = to_platform_device(sc->sc_dev);
-	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
-			       vc4_hvs_irq_handler, 0, "vc4 hvs", sc->sc_drm_dev);
-	if (error) {
-		aprint_error_dev(self, "unable to register vc4 irq: %d\n", error);
-		return;
-	}
 }
 
 #else
@@ -446,11 +494,9 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
-#ifndef __NetBSD__
 	vc4_debugfs_add_regset32(drm, "hvs_regs", &hvs->regset);
 	vc4_debugfs_add_file(drm, "hvs_underrun", vc4_hvs_debugfs_underrun,
 			     NULL);
-#endif
 
 	return 0;
 }

@@ -24,8 +24,6 @@
 #include "uapi/drm/vc4_drm.h"
 
 #ifdef __NetBSD__
-#define __iomem
-
 #define wait_queue_head_t atomic_t
 #endif
 

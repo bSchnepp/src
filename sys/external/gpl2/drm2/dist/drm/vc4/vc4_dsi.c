@@ -1645,7 +1645,6 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
 
-#ifndef __NetBSD__
 	dsi->regset.base = dsi->regs;
 	if (dsi->port == 0) {
 		dsi->regset.regs = dsi0_regs;
@@ -1654,7 +1653,6 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		dsi->regset.regs = dsi1_regs;
 		dsi->regset.nregs = ARRAY_SIZE(dsi1_regs);
 	}
-#endif
 
 	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
@@ -1791,12 +1789,10 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	 */
 	list_splice_init(&dsi->encoder->bridge_chain, &dsi->bridge_chain);
 
-#ifndef __NetBSD__
 	if (dsi->port == 0)
 		vc4_debugfs_add_regset32(drm, "dsi0_regs", &dsi->regset);
 	else
 		vc4_debugfs_add_regset32(drm, "dsi1_regs", &dsi->regset);
-#endif
 
 	pm_runtime_enable(dev);
 

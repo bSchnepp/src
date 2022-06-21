@@ -295,7 +295,9 @@ validate_indexed_prim_list(VALIDATE_ARGS)
 		return -EINVAL;
 	}
 
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+	*(uint32_t *)(validated + 5) = ib->dmasegs[0].ds_addr + offset;
+#else
 	*(uint32_t *)(validated + 5) = ib->paddr + offset;
 #endif
 
