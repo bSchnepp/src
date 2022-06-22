@@ -302,15 +302,19 @@ vcfourhvs_match(device_t parent, cfdata_t cfdata, void *aux)
 static void
 vcfourhvs_attach(device_t parent, device_t self, void *aux)
 {
-	struct vc4_hvs *hvs = NULL;
-	struct platform_device *pdev = NULL; 
-	struct vcfourhvs_softc *const sc = device_private(self);
+	struct vcfourhvs_softc * const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
+
+	struct vc4_hvs * hvs = NULL;
+	struct vc4_dev * vc4 = NULL;
+	struct platform_device * pdev = NULL;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
+
+	uint32_t dispcfg = 0;
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
@@ -352,22 +356,63 @@ vcfourhvs_attach(device_t parent, device_t self, void *aux)
 		return;		
 	}
 
+	/* 31 registers, based on the size of the array hvs_regs. */
+	hvs->dlist_bst = hvs->bst;
+	error = bus_space_subregion(hvs->bst, hvs->bsh, SCALER_DLIST_START, 31 * sizeof(uint32_t), &hvs->dlist_bsh);
+	if (IS_ERR(hvs->bst)) {
+		aprint_error_dev(self, "unable to map regs region: %d\n", 
+			EINVAL);
+		return;		
+	}
+
 	spin_lock_init(&hvs->mm_lock);
 
-	/* TODO: Correct dlist. Refer to dma (9) for information that needs
-	 * to be used in relation to hvs->bst and hvs->bsh.
+	/* Set up the dlist, and avoid changing things the bootloader set up
+	 * in the process. The Linux driver does this to prevent strange
+	 * visual issues.
 	 */
+	drm_mm_init(&hvs->dlist_mm,
+		    HVS_BOOTLOADER_DLIST_END,
+		    (SCALER_DLIST_SIZE >> 2) - HVS_BOOTLOADER_DLIST_END);
+	drm_mm_init(&hvs->lbm_mm, 0, 96 * 1024);
 
-	/* Some memory management now has to be done. */
-
-	/* To use these functions, this will be placed here.
-	 * Other initialization has to be done first for this to
-	 * function correctly!
-	 */
 	error = vc4_hvs_upload_linear_kernel(hvs,
 					   &hvs->mitchell_netravali_filter,
 					   mitchell_netravali_1_3_1_3_kernel);
 
+	dispcfg = HVS_READ(SCALER_DISPCTRL);
+
+	dispcfg |= SCALER_DISPCTRL_ENABLE;
+
+	dispcfg |= SCALER_DISPCTRL_DISPEIRQ(0) |
+		    SCALER_DISPCTRL_DISPEIRQ(1) |
+		    SCALER_DISPCTRL_DISPEIRQ(2);
+
+	
+	/* Similarly do as the Linux driver does: set up channel 2 for usage. */
+	dispcfg &= ~SCALER_DISPCTRL_DSP3_MUX_MASK;
+
+	dispcfg &= ~(SCALER_DISPCTRL_DMAEIRQ |
+		      SCALER_DISPCTRL_SLVWREIRQ |
+		      SCALER_DISPCTRL_SLVRDEIRQ |
+		      SCALER_DISPCTRL_SCLEIRQ);
+
+	dispcfg &= ~(SCALER_DISPCTRL_DSPEIEOF(0) |
+		      SCALER_DISPCTRL_DSPEIEOF(1) |
+		      SCALER_DISPCTRL_DSPEIEOF(2));
+
+	dispcfg &= ~(SCALER_DISPCTRL_DSPEIEOLN(0) |
+		      SCALER_DISPCTRL_DSPEIEOLN(1) |
+		      SCALER_DISPCTRL_DSPEIEOLN(2));
+
+	dispcfg &= ~(SCALER_DISPCTRL_DSPEISLUR(0) |
+		      SCALER_DISPCTRL_DSPEISLUR(1) |
+		      SCALER_DISPCTRL_DSPEISLUR(2));
+
+	dispcfg |= VC4_SET_FIELD(2, SCALER_DISPCTRL_DSP3_MUX);
+	HVS_WRITE(SCALER_DISPCTRL, dispcfg);	
+
+	vc4 = to_vc4_dev(sc->sc_drm_dev);
 	pdev = to_platform_device(sc->sc_dev);
 	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
 			       vc4_hvs_irq_handler, 0, "vc4 hvs", 
