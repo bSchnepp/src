@@ -184,7 +184,7 @@ static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane
 static void vc4_plane_destroy_state(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(plane->dev);
+	struct vc4_dev *vc4 = to_vc4_dev(plane->dev);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 
 	if (drm_mm_node_allocated(&vc4_state->lbm)) {
@@ -556,7 +556,7 @@ static void vc4_plane_calc_load(struct drm_plane_state *state)
 
 static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 {
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(state->plane->dev);
+	struct vc4_dev *vc4 = to_vc4_dev(state->plane->dev);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	unsigned long irqflags;
 	u32 lbm_size;
@@ -597,7 +597,7 @@ static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 static int vc4_plane_mode_set(struct drm_plane *plane,
 			      struct drm_plane_state *state)
 {
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(plane->dev);
+	struct vc4_dev *vc4 = to_vc4_dev(plane->dev);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	u32 ctl0_offset = vc4_state->dlist_count;

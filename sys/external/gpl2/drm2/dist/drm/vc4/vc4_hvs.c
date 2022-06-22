@@ -78,7 +78,7 @@ static const struct debugfs_reg32 hvs_regs[] = {
 void vc4_hvs_dump_state(struct drm_device *dev)
 {
 #ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int i;
 #else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -206,11 +206,7 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 
 void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)
 {
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	u32 dispctrl = HVS_READ(SCALER_DISPCTRL);
 
 	dispctrl &= ~SCALER_DISPCTRL_DSPEISLUR(channel);
@@ -220,11 +216,7 @@ void vc4_hvs_mask_underrun(struct drm_device *dev, int channel)
 
 void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel)
 {
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	u32 dispctrl = HVS_READ(SCALER_DISPCTRL);
 
 	dispctrl |= SCALER_DISPCTRL_DSPEISLUR(channel);
@@ -237,11 +229,7 @@ void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel)
 
 static void vc4_hvs_report_underrun(struct drm_device *dev)
 {
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 
 	atomic_inc(&vc4->underrun);
 	DRM_DEV_ERROR(dev->dev, "HVS underrun\n");
@@ -254,11 +242,7 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 #endif
 {
 	struct drm_device *dev = data;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	irqreturn_t irqret = IRQ_NONE;
 	int channel;
 	u32 control;

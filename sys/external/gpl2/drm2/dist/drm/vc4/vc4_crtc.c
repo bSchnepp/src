@@ -108,11 +108,7 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     ktime_t *stime, ktime_t *etime,
 			     const struct drm_display_mode *mode)
 {
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	u32 val;
@@ -234,11 +230,7 @@ static void
 vc4_crtc_lut_load(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	u32 i;
 
@@ -409,11 +401,7 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc)
 static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
@@ -479,11 +467,7 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 static void require_hvs_enabled(struct drm_device *dev)
 {
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 
 	WARN_ON_ONCE((HVS_READ(SCALER_DISPCTRL) & SCALER_DISPCTRL_ENABLE) !=
 		     SCALER_DISPCTRL_ENABLE);
@@ -493,11 +477,7 @@ static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
 {
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	u32 chan = vc4_crtc->channel;
 	int ret;
@@ -558,11 +538,7 @@ void vc4_crtc_txp_armed(struct drm_crtc_state *state)
 static void vc4_crtc_update_dlist(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 
@@ -594,11 +570,7 @@ static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_state)
 {
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
@@ -679,11 +651,7 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 {
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct drm_plane *plane;
 	unsigned long flags;
 	const struct drm_plane_state *plane_state;
@@ -739,11 +707,7 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_state)
 {
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_plane *plane;
@@ -842,11 +806,7 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 {
 	struct drm_crtc *crtc = &vc4_crtc->base;
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	u32 chan = vc4_crtc->channel;
 	unsigned long flags;
@@ -911,11 +871,7 @@ vc4_async_page_flip_complete(struct vc4_seqno_cb *cb)
 		container_of(cb, struct vc4_async_flip_state, cb);
 	struct drm_crtc *crtc = flip_state->crtc;
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct drm_plane *plane = crtc->primary;
 
 	vc4_plane_async_set_fb(plane, flip_state->fb);
@@ -963,11 +919,7 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 			       uint32_t flags)
 {
 	struct drm_device *dev = crtc->dev;
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct drm_plane *plane = crtc->primary;
 	int ret = 0;
 	struct vc4_async_flip_state *flip_state;
@@ -1063,11 +1015,7 @@ static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
 static void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 				   struct drm_crtc_state *state)
 {
-#ifdef __NetBSD__
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
 
 	if (drm_mm_node_allocated(&vc4_state->mm)) {
@@ -1117,6 +1065,7 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.atomic_disable = vc4_crtc_atomic_disable,
 };
 
+#if
 static const struct vc4_crtc_data pv0_data = {
 	.hvs_channel = 0,
 	.debugfs_name = "crtc0_regs",

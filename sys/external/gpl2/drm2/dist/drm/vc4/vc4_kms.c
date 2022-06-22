@@ -54,7 +54,7 @@ static struct vc4_ctm_state *vc4_get_ctm_state(struct drm_atomic_state *state,
 					       struct drm_private_obj *manager)
 {
 	struct drm_device *dev = state->dev;
-	struct vc4hvs_dev *vc4 = dev->dev_private;
+	struct vc4_dev *vc4 = dev->dev_private;
 	struct drm_private_state *priv_state;
 	int ret;
 
@@ -116,11 +116,7 @@ static u16 vc4_ctm_s31_32_to_s0_9(u64 in)
 }
 
 static void
-#ifdef __NetBSD__
-vc4_ctm_commit(struct vc4hvs_dev *vc4, struct drm_atomic_state *state)
-#else
 vc4_ctm_commit(struct vc4_dev *vc4, struct drm_atomic_state *state)
-#endif
 {
 	struct vc4_ctm_state *ctm_state = to_vc4_ctm_state(vc4->ctm_manager.state);
 	struct drm_color_ctm *ctm = ctm_state->ctm;
@@ -157,7 +153,7 @@ static void
 vc4_atomic_complete_commit(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc;
 	int i;
 
@@ -221,7 +217,7 @@ static int vc4_atomic_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
 			     bool nonblock)
 {
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret;
 
 	if (state->async_update) {
@@ -354,7 +350,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 static int
 vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_ctm_state *ctm_state = NULL;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
@@ -518,7 +514,7 @@ static const struct drm_mode_config_funcs vc4_mode_funcs = {
 
 int vc4_kms_load(struct drm_device *dev)
 {
-	struct vc4hvs_dev *vc4 = to_vc4hvs_dev(dev);
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_ctm_state *ctm_state;
 	struct vc4_load_tracker_state *load_state;
 	int ret;
