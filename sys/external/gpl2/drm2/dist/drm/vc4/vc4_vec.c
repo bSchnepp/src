@@ -265,7 +265,6 @@ static const struct debugfs_reg32 vec_regs[] = {
 };
 #endif
 
-#ifdef notyet
 static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
 {
 	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_NTSC_STD | VEC_CONFIG0_PDEN);
@@ -403,6 +402,7 @@ static const struct drm_encoder_funcs vc4_vec_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+
 static void vc4_vec_encoder_disable(struct drm_encoder *encoder)
 {
 	struct vc4_vec_encoder *vc4_vec_encoder = to_vc4_vec_encoder(encoder);
@@ -528,7 +528,15 @@ static int vc4_vec_encoder_atomic_check(struct drm_encoder *encoder,
 
 	return 0;
 }
-#endif
+
+
+static const struct drm_encoder_helper_funcs vc4_vec_encoder_helper_funcs = {
+	.disable = vc4_vec_encoder_disable,
+	.enable = vc4_vec_encoder_enable,
+	.mode_fixup = vc4_vec_encoder_mode_fixup,
+	.atomic_check = vc4_vec_encoder_atomic_check,
+	.atomic_mode_set = vc4_vec_encoder_atomic_mode_set,
+};
 
 #ifdef __NetBSD__
 static int vc4_match(device_t, cfdata_t, void *);
@@ -568,11 +576,14 @@ vc4_match(device_t parent, cfdata_t cfdata, void *aux)
 static void
 vc4_attach(device_t parent, device_t self, void *aux)
 {
+	struct vc4_dev * vc4 = NULL;
+	struct vc4_vec * vec = NULL;
+
 	struct platform_device *pdev = NULL;
 	struct vc4vec_softc *const sc = device_private(self);
+
 	struct fdt_attach_args * const faa = aux;
-	struct vc4_vec *vec;
-	struct vc4_vec_encoder *vc4_vec_encoder;
+	struct vc4_vec_encoder * vc4_vec_encoder;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -594,16 +605,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		aprint_error(": couldn't get registers\n");
 		return;
 	}
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
-	}
-
-	aprint_naive("\n");
-	aprint_normal(": GPU\n");
 
 	error = -drm_mode_create_tv_properties(sc->sc_drm_dev, ARRAY_SIZE(tv_mode_names),
 					    tv_mode_names);
@@ -628,13 +629,12 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	vc4_vec_encoder->vec = vec;
 	vec->encoder = &vc4_vec_encoder->base.base;
 	vec->pdev = pdev;
-#ifdef __NetBSD__
 	vc4_ioremap_regs(pdev, 0, &vec->bst, &vec->bsh);
-#else
-	vec->regs = vc4_ioremap_regs(pdev, 0);
-	if (IS_ERR(vec->regs))
-		return PTR_ERR(vec->regs);
-#endif
+	if (IS_ERR(vec->bst)) {
+		aprint_error_dev(self, "unable to map regs: %d\n", 
+			EINVAL);
+		return;		
+	}
 
 	vec->clock = devm_clk_get(sc->sc_dev, NULL);
 	if (IS_ERR(vec->clock)) {
@@ -646,32 +646,38 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 #ifdef notyet
 	pm_runtime_enable(sc->sc_dev);
+#endif
 
-	drm_encoder_init(drm, vec->encoder, &vc4_vec_encoder_funcs,
+	drm_encoder_init(sc->sc_drm_dev, vec->encoder, &vc4_vec_encoder_funcs,
 			 DRM_MODE_ENCODER_TVDAC, NULL);
 	drm_encoder_helper_add(vec->encoder, &vc4_vec_encoder_helper_funcs);
 
-	vec->connector = vc4_vec_connector_init(drm, vec);
+
+	vec->connector = vc4_vec_connector_init(sc->sc_drm_dev, vec);
 	if (IS_ERR(vec->connector)) {
 		error = PTR_ERR(vec->connector);
+#ifdef notyet
 		goto err_destroy_encoder;
+#endif
 	}
 
+#ifdef notyet
 	dev_set_drvdata(sc->sc_dev, vec);
-
-	vc4->vec = vec;
-	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
 #endif
+	vc4 = to_vc4_dev(sc->sc_drm_dev);
+	vc4->vec = vec;
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
 }
 #else
-static const struct drm_encoder_helper_funcs vc4_vec_encoder_helper_funcs = {
-	.disable = vc4_vec_encoder_disable,
-	.enable = vc4_vec_encoder_enable,
-	.mode_fixup = vc4_vec_encoder_mode_fixup,
-	.atomic_check = vc4_vec_encoder_atomic_check,
-	.atomic_mode_set = vc4_vec_encoder_atomic_mode_set,
-};
-
 static const struct of_device_id vc4_vec_dt_match[] = {
 	{ .compatible = "brcm,bcm2835-vec", .data = NULL },
 	{ /* sentinel */ },

@@ -429,6 +429,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4txp_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
+	struct vc4_txp * txp = NULL;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -449,6 +450,11 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
+	}
+
+	txp = devm_kzalloc(sc->sc_dev, sizeof(*txp), GFP_KERNEL);
+	if (!txp) {
+		aprint_error_dev(self, "unable to allocate txp: %d\n", ENOMEM);
 	}
 
 	/* XXX errno Linux->NetBSD */
