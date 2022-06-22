@@ -221,6 +221,7 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	return ret;
 }
 
+#if notyet
 static void vc4_crtc_destroy(struct drm_crtc *crtc)
 {
 	drm_crtc_cleanup(crtc);
@@ -464,7 +465,9 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	}
 #endif	
 }
+#endif
 
+#if notyet
 static void require_hvs_enabled(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -527,6 +530,7 @@ static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
+#endif
 
 void vc4_crtc_txp_armed(struct drm_crtc_state *state)
 {
@@ -535,6 +539,7 @@ void vc4_crtc_txp_armed(struct drm_crtc_state *state)
 	vc4_state->txp_armed = true;
 }
 
+#if notyet
 static void vc4_crtc_update_dlist(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -614,6 +619,7 @@ static enum drm_mode_status vc4_crtc_mode_valid(struct drm_crtc *crtc,
 
 	return MODE_OK;
 }
+#endif
 
 void vc4_crtc_get_margins(struct drm_crtc_state *state,
 			  unsigned int *left, unsigned int *right,
@@ -646,6 +652,7 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 	}
 }
 
+#if notyet
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *state)
 {
@@ -714,8 +721,23 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct vc4_plane_state *vc4_plane_state;
 	bool debug_dump_regs = false;
 	bool enable_bg_fill = false;
+#ifdef __NetBSD__
+	int error = 0;
+	bus_size_t offset = 0; 
+	bus_size_t old_offset = 0;
+	bus_space_handle_t dlist_start;
+	bus_space_handle_t dlist_next;
+
+	vc4_plane_state = to_vc4_plane_state(plane->state);
+	error = bus_space_subregion(vc4->hvs->bst, vc4->hvs->bsh, 0, vc4_plane_state->dlist_count * sizeof(uint32_t), &dlist_start);
+	if (error) {
+		return;
+	}
+	dlist_next = dlist_start;
+#else
 	u32 __iomem *dlist_start = vc4->hvs->dlist + vc4_state->mm.start;
 	u32 __iomem *dlist_next = dlist_start;
+#endif
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d HVS before:\n", drm_crtc_index(crtc));
@@ -737,11 +759,23 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 			vc4_plane_state = to_vc4_plane_state(plane->state);
 			enable_bg_fill = vc4_plane_state->needs_bg_fill;
 		}
-
+#ifdef __NetBSD__
+		old_offset = offset;
+		offset += vc4_plane_write_dlist(plane, vc4->hvs->bst, dlist_next) * sizeof(uint32_t);
+		error = bus_space_subregion(vc4->hvs->bst, vc4->hvs->bsh, old_offset, offset, &dlist_start);
+		if (error) {
+			return;
+		}
+#else
 		dlist_next += vc4_plane_write_dlist(plane, dlist_next);
+#endif
 	}
 
+#ifdef __NetBSD__
+	bus_space_write_4(vc4->hvs->bst, dlist_next, 0, SCALER_CTL0_END);
+#else
 	writel(SCALER_CTL0_END, dlist_next);
+#endif
 	dlist_next++;
 
 	WARN_ON_ONCE(dlist_next - dlist_start != vc4_state->mm.size);
@@ -801,6 +835,7 @@ static void vc4_disable_vblank(struct drm_crtc *crtc)
 
 	CRTC_WRITE(PV_INTEN, 0);
 }
+#endif
 
 static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 {
@@ -837,6 +872,7 @@ void vc4_crtc_handle_vblank(struct vc4_crtc *crtc)
 	vc4_crtc_handle_page_flip(crtc);
 }
 
+#if notyet
 static irqreturn_t vc4_crtc_irq_handler(int irq, void *data)
 {
 	struct vc4_crtc *vc4_crtc = data;
@@ -1015,7 +1051,7 @@ static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
 static void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 				   struct drm_crtc_state *state)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_dev *vc4 = to_vc4_dev(crtc->dev);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
 
 	if (drm_mm_node_allocated(&vc4_state->mm)) {
@@ -1065,7 +1101,6 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.atomic_disable = vc4_crtc_atomic_disable,
 };
 
-#if
 static const struct vc4_crtc_data pv0_data = {
 	.hvs_channel = 0,
 	.debugfs_name = "crtc0_regs",
@@ -1145,6 +1180,7 @@ vc4_crtc_get_cob_allocation(struct vc4_crtc *vc4_crtc)
 
 	vc4_crtc->cob_size = top - base + 4;
 }
+#endif
 
 #ifdef __NetBSD__
 
