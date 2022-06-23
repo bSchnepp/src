@@ -1025,6 +1025,11 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
 	uint32_t addr;
 
+#ifdef __NetBSD__
+	bus_space_handle_t hw_dlist_space;
+	int error;
+#endif
+
 	/* We're skipping the address adjustment for negative origin,
 	 * because this is only called on the primary plane.
 	 */
@@ -1039,7 +1044,14 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	 * scanout will start from this address as soon as the FIFO
 	 * needs to refill with pixels.
 	 */
-#ifdef notyet
+#ifdef __NetBSD__
+	error = bus_space_subregion(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, vc4_state->ptr0_offset * sizeof(uint32_t), sizeof(addr), &hw_dlist_space);
+	if (error) {
+		/* Should never occur. */
+		return;
+	}
+	bus_space_write_4(vc4_state->hw_dlist_bst, hw_dlist_space, 0, addr);
+#else
 	writel(addr, &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
 #endif
 
@@ -1268,9 +1280,8 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct vc4_plane *vc4_plane;
 	u32 formats[ARRAY_SIZE(hvs_formats)];
-#ifndef __NetBSD__
 	int ret = 0;
-#endif
+
 	unsigned i;
 	static const uint64_t modifiers[] = {
 		DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED,
@@ -1290,16 +1301,15 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 		formats[i] = hvs_formats[i].drm;
 
 	plane = &vc4_plane->base;
-#ifdef __NetBSD__
-	drm_universal_plane_init(dev, plane, 0,
-				       &vc4_plane_funcs,
-				       formats, ARRAY_SIZE(formats),
-				       modifiers, type, NULL);
-#else
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
 				       modifiers, type, NULL);
+#if __NetBSD__
+	if (ret) {
+		/* This variable seems to be unused by Linux? */
+		return ERR_PTR(ret);
+	}
 #endif
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);

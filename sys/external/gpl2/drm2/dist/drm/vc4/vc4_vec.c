@@ -656,9 +656,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	vec->connector = vc4_vec_connector_init(sc->sc_drm_dev, vec);
 	if (IS_ERR(vec->connector)) {
 		error = PTR_ERR(vec->connector);
-#ifdef notyet
 		goto err_destroy_encoder;
-#endif
 	}
 
 #ifdef notyet
@@ -676,6 +674,17 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
+
+err_destroy_encoder:
+	drm_encoder_cleanup(vec->encoder);
+#ifdef notyet
+	pm_runtime_disable(dev);
+#endif
+
+	if (error) {
+		aprint_error_dev(self, "unable to register encoder/decoder: %d\n", error);
+		return;
+	}
 }
 #else
 static const struct of_device_id vc4_vec_dt_match[] = {

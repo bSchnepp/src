@@ -82,7 +82,6 @@ static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 }
 #endif
 
-#ifndef __NetBSD__
 /* Takes ownership of *name and returns the appropriate slot for it in
  * the bo_labels[] array, extending it as necessary.
  *
@@ -132,7 +131,6 @@ static int vc4_get_user_label(struct vc4_dev *vc4, const char *name)
 		return free_slot;
 	}
 }
-#endif
 
 static void vc4_bo_set_label(struct drm_gem_object *gem_obj, int label)
 {
@@ -549,10 +547,8 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 
 	/* Remove the BO from the purgeable list. */
 	mutex_lock(&bo->madv_lock);
-#ifndef __NetBSD__
 	if (bo->madv == VC4_MADV_DONTNEED && !refcount_read(&bo->usecnt))
 		vc4_bo_remove_from_purgeable_pool(bo);
-#endif
 	mutex_unlock(&bo->madv_lock);
 
 	mutex_lock(&vc4->bo_lock);
@@ -710,7 +706,7 @@ struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
 
 #ifdef __NetBSD__
 int vc4_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr, struct vm_page **pps, 
-    int npages, int centeridx, int flags)
+    int npages, int centeridx, vm_prot_t access_type, int flags)
 #else
 vm_fault_t vc4_fault(struct vm_fault *vmf)
 #endif
@@ -1126,20 +1122,19 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_vc4_label_bo *args = data;
-#ifndef __NetBSD__
 	char *name;
-#endif
 	struct drm_gem_object *gem_obj;
-#ifdef __NetBSD__
-	int ret = 0;
-#else
 	int ret = 0, label;
-#endif
 
 	if (!args->len)
 		return -EINVAL;
 
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+	name = kmalloc(args->len + 1, GFP_KERNEL);
+	ret = copyinstr(u64_to_user_ptr(args->name), name, args->len + 1, NULL);
+	if (ret != 0)
+		return PTR_ERR(name);
+#else
 	name = strndup_user(u64_to_user_ptr(args->name), args->len + 1);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
@@ -1148,20 +1143,16 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
-#ifndef __NetBSD__
 		kfree(name);
-#endif
 		return -ENOENT;
 	}
 
 	mutex_lock(&vc4->bo_lock);
-#ifndef __NetBSD__
 	label = vc4_get_user_label(vc4, name);
 	if (label != -1)
 		vc4_bo_set_label(gem_obj, label);
 	else
 		ret = -ENOMEM;
-#endif
 	mutex_unlock(&vc4->bo_lock);
 
 	drm_gem_object_put_unlocked(gem_obj);

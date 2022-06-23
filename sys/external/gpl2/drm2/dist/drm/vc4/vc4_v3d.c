@@ -423,12 +423,6 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 static int vcfourv3d_match(device_t, cfdata_t, void *);
 static void vcfourv3d_attach(device_t, device_t, void *);
 
-#if 0
-	{ .compatible =  },
-	{ .compatible =  },
-	{ .compatible =  },
-#endif
-
 static const struct device_compatible_entry compat_data[] = {
 	{ .compat = "brcm,bcm2835-v3d",
 	  .data = NULL },
