@@ -174,7 +174,6 @@ vc4_v3d_pm_put(struct vc4_dev *vc4)
 	mutex_unlock(&vc4->power_lock);
 }
 
-#ifndef __NetBSD__
 static void vc4_v3d_init_hw(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -185,7 +184,6 @@ static void vc4_v3d_init_hw(struct drm_device *dev)
 	 */
 	V3D_WRITE(V3D_VPMBASE, 0);
 }
-#endif
 
 int vc4_v3d_get_bin_slot(struct vc4_dev *vc4)
 {
@@ -456,6 +454,9 @@ vcfourv3d_attach(device_t parent, device_t self, void *aux)
 {
 	struct vcfourv3d_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
+	struct platform_device *pdev = NULL;
+	struct vc4_dev *vc4 = NULL;
+	struct vc4_v3d *v3d = NULL;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -476,6 +477,44 @@ vcfourv3d_attach(device_t parent, device_t self, void *aux)
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
+	}
+
+	vc4 = to_vc4_dev(sc->sc_drm_dev);
+	pdev = to_platform_device(sc->sc_dev);
+
+	v3d = devm_kzalloc(sc->sc_dev, sizeof(*v3d), GFP_KERNEL);
+	if (!v3d) {
+		aprint_error(": could not allocate memory %d\n", ENOMEM);
+		return;
+	}
+
+#ifdef notyet
+	dev_set_drvdata(sc->sc_dev, v3d);
+#endif
+
+	v3d->pdev = pdev;
+	vc4_ioremap_regs(pdev, 0, &v3d->bst, &v3d->bsh);
+	if (IS_ERR(v3d->bst)) {
+		aprint_error_dev(self, "unable to map regs: %d\n", 
+			EINVAL);
+		return;		
+	}
+
+	vc4->v3d = v3d;
+	v3d->vc4 = vc4;
+
+	/* Reset bin registers, to make sure old objects don't get used again. 
+	 */
+	V3D_WRITE(V3D_BPOA, 0);
+	V3D_WRITE(V3D_BPOS, 0);	
+
+	vc4_v3d_init_hw(sc->sc_drm_dev);
+
+	error = -drm_irq_install(sc->sc_drm_dev);
+	if (error) {
+		aprint_error_dev(self, "cannot set up v3d irq: %d\n", 
+			error);
+		return;	
 	}
 
 	/* XXX errno Linux->NetBSD */
