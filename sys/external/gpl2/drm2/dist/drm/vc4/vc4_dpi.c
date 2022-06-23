@@ -308,7 +308,7 @@ struct vc4dpi_softc {
 	struct drm_device	*sc_drm_dev;
 };
 
-CFATTACH_DECL_NEW(vc4, sizeof(struct vc4dpi_softc),
+CFATTACH_DECL_NEW(vcfourdpi, sizeof(struct vc4dpi_softc),
 	vc4_match, vc4_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */

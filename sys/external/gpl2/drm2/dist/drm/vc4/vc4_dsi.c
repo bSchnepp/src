@@ -1562,7 +1562,7 @@ struct vc4dsi_softc {
 	struct drm_device	*sc_drm_dev;
 };
 
-CFATTACH_DECL_NEW(vc4, sizeof(struct vc4dsi_softc),
+CFATTACH_DECL_NEW(vcfourdsi, sizeof(struct vc4dsi_softc),
 	vc4_match, vc4_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
