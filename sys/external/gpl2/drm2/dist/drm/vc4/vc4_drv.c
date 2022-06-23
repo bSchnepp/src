@@ -86,75 +86,6 @@ void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index)
 }
 #endif
 
-#if __NetBSD__
-static int vc4_match(device_t, cfdata_t, void *);
-static void vc4_attach(device_t, device_t, void *);
-
-static const struct device_compatible_entry compat_data[] = {
-	{ .compat = "brcm,bcm2835-vc4",
-	  .data = NULL },
-	{ .compat = "brcm,cygnus-vc4",
-	  .data = NULL },
-	DEVICE_COMPAT_EOL
-};
-
-struct vc4_softc {
-	device_t		sc_dev;
-	struct drm_device	*sc_drm_dev;
-};
-
-CFATTACH_DECL_NEW(vcfour, sizeof(struct vc4_softc),
-	vc4_match, vc4_attach, NULL, NULL);
-
-/* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_drm_driver;
-
-static int
-vc4_match(device_t parent, cfdata_t cfdata, void *aux)
-{
-	struct fdt_attach_args * const faa = aux;
-	return of_compatible_match(faa->faa_phandle, compat_data);
-}
-
-static void
-vc4_attach(device_t parent, device_t self, void *aux)
-{
-	struct vc4_softc *const sc = device_private(self);
-	struct fdt_attach_args * const faa = aux;
-
-	const int phandle = faa->faa_phandle;
-	bus_addr_t addr;
-	bus_size_t size;
-	int error;
-
-	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
-	sc->sc_drm_dev->bst = faa->faa_bst;
-	sc->sc_drm_dev->dmat = faa->faa_dmat;
-	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
-		aprint_error(": couldn't get registers\n");
-		return;
-	}
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
-	}
-
-	aprint_naive("\n");
-	aprint_normal(": GPU\n");
-}
-#else
-
 static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv)
 {
@@ -231,6 +162,11 @@ static void vc4_close(struct drm_device *dev, struct drm_file *file)
 	kfree(vc4file);
 }
 
+#if __NetBSD__
+static const struct uvm_pagerops vc4_vm_ops = {
+	.pgo_fault = &vc4_fault,
+};
+#else
 static const struct vm_operations_struct vc4_vm_ops = {
 	.fault = vc4_fault,
 	.open = drm_gem_vm_open,
@@ -248,6 +184,7 @@ static const struct file_operations vc4_drm_fops = {
 	.compat_ioctl = drm_compat_ioctl,
 	.llseek = noop_llseek,
 };
+#endif
 
 static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_SUBMIT_CL, vc4_submit_cl_ioctl, DRM_RENDER_ALLOW),
@@ -268,6 +205,75 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_PERFMON_GET_VALUES, vc4_perfmon_get_values_ioctl, DRM_RENDER_ALLOW),
 };
 
+#if __NetBSD__
+static int vc4_match(device_t, cfdata_t, void *);
+static void vc4_attach(device_t, device_t, void *);
+
+static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-vc4",
+	  .data = NULL },
+	{ .compat = "brcm,cygnus-vc4",
+	  .data = NULL },
+	DEVICE_COMPAT_EOL
+};
+
+struct vc4_softc {
+	device_t		sc_dev;
+	struct drm_device	*sc_drm_dev;
+};
+
+CFATTACH_DECL_NEW(vcfour, sizeof(struct vc4_softc),
+	vc4_match, vc4_attach, NULL, NULL);
+
+/* XXX Kludge to get these from vc4_drv.c.  */
+extern struct drm_driver *const vc4_driver;
+
+static int
+vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+{
+	struct fdt_attach_args * const faa = aux;
+	return of_compatible_match(faa->faa_phandle, compat_data);
+}
+
+static void
+vc4_attach(device_t parent, device_t self, void *aux)
+{
+	struct vc4_softc *const sc = device_private(self);
+	struct fdt_attach_args * const faa = aux;
+
+	const int phandle = faa->faa_phandle;
+	bus_addr_t addr;
+	bus_size_t size;
+	int error;
+
+	sc->sc_dev = self;
+	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
+	if (IS_ERR(sc->sc_drm_dev)) {
+		aprint_error_dev(self, "unable to create drm device: %ld\n",
+		    PTR_ERR(sc->sc_drm_dev));
+		sc->sc_drm_dev = NULL;
+		return;
+	}
+
+	sc->sc_drm_dev->bst = faa->faa_bst;
+	sc->sc_drm_dev->dmat = faa->faa_dmat;
+	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
+		aprint_error(": couldn't get registers\n");
+		return;
+	}
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
+}
+#endif
+
 static struct drm_driver vc4_drm_driver = {
 	.driver_features = (DRIVER_MODESET |
 			    DRIVER_ATOMIC |
@@ -276,7 +282,9 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_SYNCOBJ),
 	.open = vc4_open,
 	.postclose = vc4_close,
+#ifdef notyet
 	.irq_handler = vc4_irq,
+#endif
 	.irq_preinstall = vc4_irq_preinstall,
 	.irq_postinstall = vc4_irq_postinstall,
 	.irq_uninstall = vc4_irq_uninstall,
@@ -290,7 +298,11 @@ static struct drm_driver vc4_drm_driver = {
 
 	.gem_create_object = vc4_create_object,
 	.gem_free_object_unlocked = vc4_free_object,
+#ifdef __NetBSD__
+	.gem_uvm_ops = &vc4_vm_ops,
+#else
 	.gem_vm_ops = &vc4_vm_ops,
+#endif
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
@@ -305,7 +317,11 @@ static struct drm_driver vc4_drm_driver = {
 
 	.ioctls = vc4_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
+#ifdef __NetBSD__
+	.fops = NULL,
+#else
 	.fops = &vc4_drm_fops,
+#endif
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -315,6 +331,11 @@ static struct drm_driver vc4_drm_driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
+#ifdef __NetBSD__
+struct drm_driver *const vc4_driver = &vc4_drm_driver;
+#endif
+
+#ifndef __NetBSD__
 static int compare_dev(struct device *dev, void *data)
 {
 	return dev == data;

@@ -775,7 +775,7 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 #ifdef __NetBSD__
 int vc4_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr, struct vm_page **pps, 
-    int npages, int centeridx, int flags);
+    int npages, int centeridx, vm_prot_t access_type, int flags);
 
 int vc4_mmap(struct file *filp, off_t *offp, size_t len, int prot, int *flagsp, 
     int *advicep, struct uvm_object **uobjp, int *maxprotp);

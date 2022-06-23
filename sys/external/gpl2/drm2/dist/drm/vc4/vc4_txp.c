@@ -16,6 +16,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/fdt/fdtvar.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#include <linux/platform_device.h>
 #endif
 
 #include <linux/clk.h>
@@ -415,7 +416,7 @@ CFATTACH_DECL_NEW(vcfourtxp, sizeof(struct vc4txp_softc),
 	vc4_match, vc4_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_drm_driver;
+extern struct drm_driver *const vc4_driver;
 
 static int
 vc4_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -430,14 +431,15 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	struct vc4txp_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
 	struct vc4_txp * txp = NULL;
+	struct platform_device * pdev = NULL;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
-	int error;
+	int error, irq;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
+	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
 	if (IS_ERR(sc->sc_drm_dev)) {
 		aprint_error_dev(self, "unable to create drm device: %ld\n",
 		    PTR_ERR(sc->sc_drm_dev));
@@ -455,6 +457,14 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	txp = devm_kzalloc(sc->sc_dev, sizeof(*txp), GFP_KERNEL);
 	if (!txp) {
 		aprint_error_dev(self, "unable to allocate txp: %d\n", ENOMEM);
+		return;
+	}
+
+	pdev = to_platform_device(sc->sc_dev);	
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		aprint_error_dev(self, "unable to register irq: %d\n", irq);
+		return;
 	}
 
 	/* XXX errno Linux->NetBSD */
@@ -489,11 +499,9 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 	txp->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(txp->regs))
 		return PTR_ERR(txp->regs);
-#ifndef __NetBSD__		
 	txp->regset.base = txp->regs;
 	txp->regset.regs = txp_regs;
 	txp->regset.nregs = ARRAY_SIZE(txp_regs);
-#endif
 
 	drm_connector_helper_add(&txp->connector.base,
 				 &vc4_txp_connector_helper_funcs);
@@ -511,9 +519,7 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 
 	dev_set_drvdata(dev, txp);
 	vc4->txp = txp;
-#ifndef __NetBSD__
 	vc4_debugfs_add_regset32(drm, "txp_regs", &txp->regset);
-#endif
 	return 0;
 }
 

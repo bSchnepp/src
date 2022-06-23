@@ -564,7 +564,7 @@ CFATTACH_DECL_NEW(vcfourvec, sizeof(struct vc4vec_softc),
 	vc4_match, vc4_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_drm_driver;
+extern struct drm_driver *const vc4_driver;
 
 static int
 vc4_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -591,7 +591,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	int error;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_drm_driver, self);
+	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
 	if (IS_ERR(sc->sc_drm_dev)) {
 		aprint_error_dev(self, "unable to create drm device: %ld\n",
 		    PTR_ERR(sc->sc_drm_dev));
