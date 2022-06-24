@@ -200,7 +200,6 @@ static const struct debugfs_reg32 txp_regs[] = {
 };
 #endif
 
-#ifndef __NetBSD__
 static int vc4_txp_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -323,7 +322,12 @@ static void vc4_txp_connector_atomic_commit(struct drm_connector *conn,
 		ctrl |= TXP_ALPHA_ENABLE;
 
 	gem = drm_fb_cma_get_gem_obj(fb, 0);
+#ifdef __NetBSD__
+	TXP_WRITE(TXP_DST_PTR, gem->dmasegs[0].ds_addr + 
+		  sizeof(gem->dmasegs[0].ds_addr) * fb->offsets[0]);
+#else	
 	TXP_WRITE(TXP_DST_PTR, gem->paddr + fb->offsets[0]);
+#endif
 	TXP_WRITE(TXP_DST_PITCH, fb->pitches[0]);
 	TXP_WRITE(TXP_DIM,
 		  VC4_SET_FIELD(mode->hdisplay, TXP_WIDTH) |
@@ -331,7 +335,9 @@ static void vc4_txp_connector_atomic_commit(struct drm_connector *conn,
 
 	TXP_WRITE(TXP_DST_CTRL, ctrl);
 
+#ifdef notyet
 	drm_writeback_queue_job(&txp->connector, conn_state);
+#endif
 }
 
 static const struct drm_connector_helper_funcs vc4_txp_connector_helper_funcs = {
@@ -341,6 +347,7 @@ static const struct drm_connector_helper_funcs vc4_txp_connector_helper_funcs = 
 	.atomic_commit = vc4_txp_connector_atomic_commit,
 };
 
+#ifndef __NetBSD__
 static enum drm_connector_status
 vc4_txp_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -384,18 +391,24 @@ static void vc4_txp_encoder_disable(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs vc4_txp_encoder_helper_funcs = {
 	.disable = vc4_txp_encoder_disable,
 };
+#endif
 
+#ifdef __NetBSD__
+static irqreturn_t vc4_txp_interrupt(void *data)
+#else
 static irqreturn_t vc4_txp_interrupt(int irq, void *data)
+#endif
 {
 	struct vc4_txp *txp = data;
 
 	TXP_WRITE(TXP_DST_CTRL, TXP_READ(TXP_DST_CTRL) & ~TXP_EI);
 	vc4_crtc_handle_vblank(to_vc4_crtc(txp->connector.base.state->crtc));
+#ifdef notyet
 	drm_writeback_signal_completion(&txp->connector, 0);
+#endif
 
 	return IRQ_HANDLED;
 }
-#endif
 
 #ifdef __NetBSD__
 static int vc4_match(device_t, cfdata_t, void *);
@@ -454,6 +467,12 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		aprint_error(": couldn't get irq\n");
+		return;		
+	}
+
 	txp = devm_kzalloc(sc->sc_dev, sizeof(*txp), GFP_KERNEL);
 	if (!txp) {
 		aprint_error_dev(self, "unable to allocate txp: %d\n", ENOMEM);
@@ -461,9 +480,20 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	}
 
 	pdev = to_platform_device(sc->sc_dev);	
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		aprint_error_dev(self, "unable to register irq: %d\n", irq);
+
+	drm_connector_helper_add(&txp->connector.base,
+				 &vc4_txp_connector_helper_funcs);
+#ifdef notyet
+	error = drm_writeback_connector_init(drm, &txp->connector,
+					   &vc4_txp_connector_funcs,
+					   &vc4_txp_encoder_helper_funcs,
+					   drm_fmts, ARRAY_SIZE(drm_fmts));
+#endif
+
+	error = -devm_request_irq(sc->sc_dev, irq, vc4_txp_interrupt, 0,
+			       dev_name(sc->sc_dev), txp);
+	if (error) {
+		aprint_error_dev(self, "unable to register irq: %d\n", error);
 		return;
 	}
 
