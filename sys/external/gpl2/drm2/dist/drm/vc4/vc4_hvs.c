@@ -359,7 +359,8 @@ vcfourhvs_attach(device_t parent, device_t self, void *aux)
 
 	/* 31 registers, based on the size of the array hvs_regs. */
 	hvs->dlist_bst = hvs->bst;
-	error = bus_space_subregion(hvs->bst, hvs->bsh, SCALER_DLIST_START, 31 * sizeof(uint32_t), &hvs->dlist_bsh);
+	error = bus_space_subregion(hvs->bst, hvs->bsh, SCALER_DLIST_START, 
+		31 * sizeof(uint32_t), &hvs->dlist_bsh);
 	if (IS_ERR(hvs->bst)) {
 		aprint_error_dev(self, "unable to map regs region: %d\n", 
 			EINVAL);

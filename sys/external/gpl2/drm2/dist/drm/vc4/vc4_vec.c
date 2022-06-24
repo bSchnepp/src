@@ -636,11 +636,12 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;		
 	}
 
-	vec->clock = devm_clk_get(sc->sc_dev, NULL);
-	if (IS_ERR(vec->clock)) {
+	vec->clock = fdtbus_clock_get(sc->sc_dev, NULL);
+	if (vec->clock == NULL) {
 		error = PTR_ERR(vec->clock);
-		if (error != -EPROBE_DEFER)
-			DRM_ERROR("Failed to get clock: %d\n", error);
+		if (error != -EPROBE_DEFER) {
+			aprint_error(": couldn't get clock");
+		}
 		return;
 	}
 
@@ -674,6 +675,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
+	return;
 
 err_destroy_encoder:
 	drm_encoder_cleanup(vec->encoder);

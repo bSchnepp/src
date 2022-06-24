@@ -1581,6 +1581,11 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	struct vc4dsi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
 
+	struct vc4_dsi * dsi = NULL;
+	struct vc4_dev * vc4 = NULL;
+	struct platform_device * pdev = NULL;
+	struct vc4_dsi_encoder * vc4_dsi_encoder = NULL;
+
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
@@ -1602,11 +1607,41 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	dsi = dev_get_drvdata(sc->sc_dev);
+	/* TODO: Set dsi->port based on the values from the dtb */
+
+	vc4_dsi_encoder = devm_kzalloc(sc->sc_dev, sizeof(*vc4_dsi_encoder),
+				       GFP_KERNEL);
+	if (vc4_dsi_encoder == NULL) {
+		aprint_error_dev(self, "unable to create dsi encoder: %d\n", ENOMEM);
+		return;
+	}
+
+	INIT_LIST_HEAD(&dsi->bridge_chain);
+	vc4_dsi_encoder->base.type = VC4_ENCODER_TYPE_DSI1;
+	vc4_dsi_encoder->dsi = dsi;
+	dsi->encoder = &vc4_dsi_encoder->base.base;
+
+	pdev = to_platform_device(sc->sc_dev);
+	vc4_ioremap_regs(pdev, 0, &dsi->bst, &dsi->bsh);
+
+	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
+		aprint_error(": got invalid dsi ID: got 0x%x, expected 0x%x\n",
+				DSI_PORT_READ(ID), DSI_ID_VALUE);
+		return;	
+	}
+
+	/* TODO: Handle hardware issue with DSI1 */
+
+
+	if (dsi->port == 1)
+		vc4->dsi1 = dsi;
+
 	/* XXX errno Linux->NetBSD */
 	error = -drm_dev_register(sc->sc_drm_dev, 0);
 	if (error) {
 		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
+		return;				
 	}
 
 	aprint_naive("\n");

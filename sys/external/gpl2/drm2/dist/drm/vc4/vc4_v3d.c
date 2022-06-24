@@ -503,6 +503,19 @@ vcfourv3d_attach(device_t parent, device_t self, void *aux)
 	vc4->v3d = v3d;
 	v3d->vc4 = vc4;
 
+	/* May be okay without a clock. Reference Linux driver. */
+	v3d->clk = fdtbus_clock_get(phandle, NULL);
+
+	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
+		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
+			  V3D_READ(V3D_IDENT0), V3D_EXPECTED_IDENT0);
+		return;
+	}
+
+	error = clk_prepare_enable(v3d->clk);
+	if (error != 0)
+		return;
+
 	/* Reset bin registers, to make sure old objects don't get used again. 
 	 */
 	V3D_WRITE(V3D_BPOA, 0);
