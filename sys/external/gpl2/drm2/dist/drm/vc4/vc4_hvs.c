@@ -348,6 +348,7 @@ vcfourhvs_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	pdev = to_platform_device(sc->sc_dev);
 	hvs->pdev = pdev;
 	vc4_ioremap_regs(pdev, 0, &hvs->bst, &hvs->bsh);
 	if (IS_ERR(hvs->bst)) {
@@ -413,7 +414,6 @@ vcfourhvs_attach(device_t parent, device_t self, void *aux)
 	HVS_WRITE(SCALER_DISPCTRL, dispcfg);	
 
 	vc4 = to_vc4_dev(sc->sc_drm_dev);
-	pdev = to_platform_device(sc->sc_dev);
 	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
 			       vc4_hvs_irq_handler, 0, "vc4 hvs", 
 			       sc->sc_drm_dev);
