@@ -808,6 +808,7 @@ dsi_esc_timing(u32 ns)
 	return DIV_ROUND_UP(ns, ESC_TIME_NS);
 }
 
+
 static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
@@ -889,9 +890,7 @@ static bool vc4_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 
 	return true;
 }
-#endif
 
-#ifdef notyet
 static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
@@ -1180,8 +1179,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		drm_print_regset32(&p, &dsi->regset);
 	}
 #endif
-
 }
+#endif
+
 #ifndef __NetBSD__
 static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 				     const struct mipi_dsi_msg *msg)
@@ -1340,6 +1340,7 @@ reset_fifo_and_return:
 }
 #endif
 
+#ifdef notyet
 static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
@@ -1377,11 +1378,12 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 			"Only VIDEO mode panels supported currently.\n");
 		return 0;
 	}
-
 	return 0;
 }
+#endif
 
 
+#ifdef notyet
 static int vc4_dsi_host_detach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
@@ -1399,11 +1401,14 @@ static const struct drm_encoder_helper_funcs vc4_dsi_encoder_helper_funcs = {
 	.enable = vc4_dsi_encoder_enable,
 	.mode_fixup = vc4_dsi_encoder_mode_fixup,
 };
+#endif
 
+#ifndef __NetBSD__
 static const struct of_device_id vc4_dsi_dt_match[] = {
 	{ .compatible = "brcm,bcm2835-dsi1", (void *)(uintptr_t)1 },
 	{}
 };
+#endif
 
 static void dsi_handle_error(struct vc4_dsi *dsi,
 			     irqreturn_t *ret, u32 stat, u32 bit,
@@ -1416,13 +1421,19 @@ static void dsi_handle_error(struct vc4_dsi *dsi,
 	*ret = IRQ_HANDLED;
 }
 
+
+#ifdef notyet
 /*
  * Initial handler for port 1 where we need the reg_dma workaround.
  * The register DMA writes sleep, so we can't do it in the top half.
  * Instead we use IRQF_ONESHOT so that the IRQ gets disabled in the
  * parent interrupt contrller until our interrupt thread is done.
  */
+#ifdef __NetBSD__
+static irqreturn_t vc4_dsi_irq_defer_to_thread_handler(void *data)
+#else
 static irqreturn_t vc4_dsi_irq_defer_to_thread_handler(int irq, void *data)
+#endif
 {
 	struct vc4_dsi *dsi = data;
 	u32 stat = DSI_PORT_READ(INT_STAT);
@@ -1430,14 +1441,23 @@ static irqreturn_t vc4_dsi_irq_defer_to_thread_handler(int irq, void *data)
 	if (!stat)
 		return IRQ_NONE;
 
+#ifdef __NetBSD__
+	return IRQ_HANDLED;	/* Probably wrong? */
+#else
 	return IRQ_WAKE_THREAD;
+#endif
 }
+#endif
 
 /*
  * Normal IRQ handler for port 0, or the threaded IRQ handler for port
  * 1 where we need the reg_dma workaround.
  */
+#ifdef __NetBSD__
+static irqreturn_t vc4_dsi_irq_handler(void *data)
+#else
 static irqreturn_t vc4_dsi_irq_handler(int irq, void *data)
+#endif
 {
 	struct vc4_dsi *dsi = data;
 	u32 stat = DSI_PORT_READ(INT_STAT);
@@ -1483,10 +1503,9 @@ static int
 vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 {
 #ifdef __NetBSD__
-	struct device *dev = dsi->pdev->pd_dev;
+	return 0;
 #else
 	struct device *dev = &dsi->pdev->dev;
-#endif
 	const char *parent_name = __clk_get_name(dsi->pll_phy_clock);
 	static const struct {
 		const char *dsi0_name, *dsi1_name;
@@ -1544,8 +1563,8 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 	return of_clk_add_hw_provider(dev->of_node,
 				      of_clk_hw_onecell_get,
 				      dsi->clk_onecell);
-}
 #endif
+}
 
 #ifdef __NetBSD__
 static int vc4_match(device_t, cfdata_t, void *);
@@ -1632,6 +1651,57 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	}
 
 	/* TODO: Handle hardware issue with DSI1 */
+
+	init_completion(&dsi->xfer_completion);
+	/* At startup enable error-reporting interrupts and nothing else. */
+	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
+	/* Clear any existing interrupt state. */
+	DSI_PORT_WRITE(INT_STAT, DSI_PORT_READ(INT_STAT));
+
+	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
+			       vc4_dsi_irq_handler, 0, "vc4 dsi", dsi);
+	if (error) {
+		if (error != -EPROBE_DEFER)
+			dev_err(sc->sc_dev, "Failed to get interrupt: %d\n", error);
+		return;
+	}
+
+	dsi->escape_clock = devm_clk_get(sc->sc_dev, "escape");
+	if (IS_ERR(dsi->escape_clock)) {
+		error = PTR_ERR(dsi->escape_clock);
+		if (error != -EPROBE_DEFER)
+			dev_err(sc->sc_dev, "Failed to get escape clock: %d\n", error);
+		return;
+	}
+
+	dsi->pll_phy_clock = devm_clk_get(sc->sc_dev, "phy");
+	if (IS_ERR(dsi->pll_phy_clock)) {
+		error = PTR_ERR(dsi->pll_phy_clock);
+		if (error != -EPROBE_DEFER)
+			dev_err(sc->sc_dev, "Failed to get phy clock: %d\n", error);
+		return;
+	}
+
+	dsi->pixel_clock = devm_clk_get(sc->sc_dev, "pixel");
+	if (IS_ERR(dsi->pixel_clock)) {
+		error = PTR_ERR(dsi->pixel_clock);
+		if (error != -EPROBE_DEFER)
+			dev_err(sc->sc_dev, "Failed to get pixel clock: %d\n", error);
+		return;
+	}
+
+	/* Find panel or bridge... */
+
+	/* The esc clock rate is supposed to always be 100Mhz. */
+	error = clk_set_rate(dsi->escape_clock, 100 * 1000000);
+	if (error) {
+		dev_err(sc->sc_dev, "Failed to set esc clock: %d\n", error);
+		return;
+	}
+
+	error = vc4_dsi_init_phy_clocks(dsi);
+	if (error)
+		return;
 
 
 	if (dsi->port == 1)
