@@ -636,7 +636,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;		
 	}
 
-	vec->clock = fdtbus_clock_get(sc->sc_dev, NULL);
+	vec->clock = fdtbus_clock_get(phandle, NULL);
 	if (vec->clock == NULL) {
 		error = PTR_ERR(vec->clock);
 		if (error != -EPROBE_DEFER) {

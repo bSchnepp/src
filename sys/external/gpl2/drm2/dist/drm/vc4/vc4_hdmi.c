@@ -40,6 +40,9 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/fdt/fdtvar.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+
+#include <linux/platform_device.h>
+#include <linux/rational.h>
 #endif
 
 #include <drm/drm_atomic_helper.h>
@@ -66,17 +69,20 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #define CEC_CLOCK_DIV  (HSM_CLOCK_FREQ / CEC_CLOCK_FREQ)
 
 /* HDMI audio information */
-#if notyet
 struct vc4_hdmi_audio {
+#if notyet
 	struct snd_soc_card card;
 	struct snd_soc_dai_link link;
 	struct snd_soc_dai_link_component cpu;
 	struct snd_soc_dai_link_component codec;
 	struct snd_soc_dai_link_component platform;
+#endif
 	int samplerate;
 	int channels;
+#if notyet	
 	struct snd_dmaengine_dai_dma_data dma_data;
 	struct snd_pcm_substream *substream;
+#endif
 };
 
 /* General HDMI hardware state. */
@@ -103,7 +109,9 @@ struct vc4_hdmi {
 	bool hpd_active_low;
 
 	struct cec_adapter *cec_adap;
+#if notyet
 	struct cec_msg cec_rx_msg;
+#endif
 	bool cec_tx_ok;
 	bool cec_irq_was_rx;
 
@@ -231,10 +239,12 @@ vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	if (vc4->hdmi->hpd_gpio) {
+#if notyet
 		if (gpio_get_value_cansleep(vc4->hdmi->hpd_gpio) ^
 		    vc4->hdmi->hpd_active_low)
 			return connector_status_connected;
 		cec_phys_addr_invalidate(vc4->hdmi->cec_adap);
+#endif
 		return connector_status_disconnected;
 	}
 
@@ -243,7 +253,9 @@ vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 
 	if (HDMI_READ(VC4_HDMI_HOTPLUG) & VC4_HDMI_HOTPLUG_CONNECTED)
 		return connector_status_connected;
+#if notyet
 	cec_phys_addr_invalidate(vc4->hdmi->cec_adap);
+#endif
 	return connector_status_disconnected;
 }
 
@@ -265,7 +277,9 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 
 	edid = drm_get_edid(connector, vc4->hdmi->ddc);
+#if notyet
 	cec_s_phys_addr_from_edid(vc4->hdmi->cec_adap, edid);
+#endif
 	if (!edid)
 		return -ENODEV;
 
@@ -453,6 +467,7 @@ static void vc4_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 	vc4_hdmi_write_infoframe(encoder, &frame);
 }
 
+#ifdef notyet
 static void vc4_hdmi_set_audio_infoframe(struct drm_encoder *encoder)
 {
 	struct drm_device *drm = encoder->dev;
@@ -467,9 +482,9 @@ static void vc4_hdmi_set_audio_infoframe(struct drm_encoder *encoder)
 	frame.audio.sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_STREAM;
 	frame.audio.sample_size = HDMI_AUDIO_SAMPLE_SIZE_STREAM;
 	frame.audio.channels = hdmi->audio.channels;
-
 	vc4_hdmi_write_infoframe(encoder, &frame);
 }
+#endif
 
 static void vc4_hdmi_set_infoframes(struct drm_encoder *encoder)
 {
@@ -482,7 +497,9 @@ static void vc4_hdmi_encoder_disable(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hdmi *hdmi = vc4->hdmi;
+#ifndef __NetBSD__
 	int ret;
+#endif
 
 	HDMI_WRITE(VC4_HDMI_RAM_PACKET_CONFIG, 0);
 
@@ -491,10 +508,11 @@ static void vc4_hdmi_encoder_disable(struct drm_encoder *encoder)
 		 HD_READ(VC4_HD_VID_CTL) & ~VC4_HD_VID_CTL_ENABLE);
 
 	clk_disable_unprepare(hdmi->pixel_clock);
-
+#ifndef __NetBSD__
 	ret = pm_runtime_put(&hdmi->pdev->dev);
 	if (ret < 0)
 		DRM_ERROR("Failed to release power domain: %d\n", ret);
+#endif
 }
 
 static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
@@ -504,7 +522,9 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hdmi *hdmi = vc4->hdmi;
+#ifndef __NetBSD__
 	bool debug_dump_regs = false;
+#endif
 	bool hsync_pos = mode->flags & DRM_MODE_FLAG_PHSYNC;
 	bool vsync_pos = mode->flags & DRM_MODE_FLAG_PVSYNC;
 	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
@@ -525,11 +545,13 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 	u32 csc_ctl;
 	int ret;
 
+#ifndef __NetBSD__
 	ret = pm_runtime_get_sync(&hdmi->pdev->dev);
 	if (ret < 0) {
 		DRM_ERROR("Failed to retain power domain: %d\n", ret);
 		return;
 	}
+#endif
 
 	ret = clk_set_rate(hdmi->pixel_clock,
 			   mode->clock * 1000 *
@@ -558,6 +580,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	HDMI_WRITE(VC4_HDMI_TX_PHY_RESET_CTL, 0);
 
+#ifndef __NetBSD__
 	if (debug_dump_regs) {
 		struct drm_printer p = drm_info_printer(&hdmi->pdev->dev);
 
@@ -565,6 +588,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 		drm_print_regset32(&p, &hdmi->hdmi_regset);
 		drm_print_regset32(&p, &hdmi->hd_regset);
 	}
+#endif
 
 	HD_WRITE(VC4_HD_VID_CTL, 0);
 
@@ -637,6 +661,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	HDMI_WRITE(VC4_HDMI_FIFO_CTL, VC4_HDMI_FIFO_CTL_MASTER_SLAVE_N);
 
+#ifndef __NetBSD__
 	if (debug_dump_regs) {
 		struct drm_printer p = drm_info_printer(&hdmi->pdev->dev);
 
@@ -644,6 +669,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 		drm_print_regset32(&p, &hdmi->hdmi_regset);
 		drm_print_regset32(&p, &hdmi->hd_regset);
 	}
+#endif
 
 	HD_WRITE(VC4_HD_VID_CTL,
 		 HD_READ(VC4_HD_VID_CTL) |
@@ -728,6 +754,7 @@ static const struct drm_encoder_helper_funcs vc4_hdmi_encoder_helper_funcs = {
 	.enable = vc4_hdmi_encoder_enable,
 };
 
+#ifdef notyet
 /* HDMI audio codec callbacks */
 static void vc4_hdmi_audio_set_mai_clock(struct vc4_hdmi *hdmi)
 {
@@ -822,7 +849,11 @@ static void vc4_hdmi_audio_reset(struct vc4_hdmi *hdmi)
 {
 	struct drm_encoder *encoder = hdmi->encoder;
 	struct drm_device *drm = encoder->dev;
+#ifdef __NetBSD__
+	struct device *dev = hdmi->pdev->pd_dev;
+#else
 	struct device *dev = &hdmi->pdev->dev;
+#endif
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	int ret;
 
@@ -1160,6 +1191,7 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 	return ret;
 
 }
+#endif
 
 #ifdef CONFIG_DRM_VC4_HDMI_CEC
 static irqreturn_t vc4_cec_irq_handler_thread(int irq, void *priv)
@@ -1313,7 +1345,6 @@ static const struct cec_adap_ops vc4_hdmi_cec_adap_ops = {
 	.adap_transmit = vc4_hdmi_cec_adap_transmit,
 };
 #endif
-#endif
 
 #ifdef __NetBSD__
 static int vc4_match(device_t, cfdata_t, void *);
@@ -1348,7 +1379,9 @@ vc4_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4hdmi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-
+	struct vc4_dev * vc4 = NULL;
+	struct vc4_hdmi *hdmi;
+	struct platform_device *pdev = NULL;
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
@@ -1370,6 +1403,94 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	hdmi = devm_kzalloc(sc->sc_dev, sizeof(*hdmi), GFP_KERNEL);
+	if (!hdmi) {
+		aprint_error_dev(self, "unable to allocate hdmi: %d\n", 
+			ENOMEM);
+		return;
+	}
+
+	pdev = to_platform_device(sc->sc_dev);
+	hdmi->pdev = pdev;
+	vc4_ioremap_regs(pdev, 0, &hdmi->hdmicore_bst, &hdmi->hdmicore_bsh);
+	if (IS_ERR(hdmi->hdmicore_bst)) {
+		aprint_error_dev(self, "unable to map hdmicore regs: %d\n", 
+			EINVAL);
+		return;		
+	}	
+
+	hdmi->pixel_clock = devm_clk_get(sc->sc_dev, "pixel");
+	if (IS_ERR(hdmi->pixel_clock)) {
+		aprint_error_dev(self, "could not get pixel clock: %d\n", 
+			EINVAL);
+		return;	
+	}
+	hdmi->hsm_clock = devm_clk_get(sc->sc_dev, "hdmi");
+	if (IS_ERR(hdmi->hsm_clock)) {
+		aprint_error_dev(self, "could not get hdmi hsm clock: %d\n", 
+			EINVAL);
+		return;	
+	}
+
+	/* Get DDC node */
+
+	/* This is the rate that is set by the firmware.  The number
+	 * needs to be a bit higher than the pixel clock rate
+	 * (generally 148.5Mhz).
+	 */
+	error = clk_set_rate(hdmi->hsm_clock, HSM_CLOCK_FREQ);
+	if (error) {
+		DRM_ERROR("Failed to set HSM clock rate: %d\n", error);
+		goto err_put_i2c;
+	}
+
+	error = clk_prepare_enable(hdmi->hsm_clock);
+	if (error) {
+		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
+			  error);
+		goto err_put_i2c;
+	}
+
+	/* This is the rate that is set by the firmware.  The number
+	 * needs to be a bit higher than the pixel clock rate
+	 * (generally 148.5Mhz).
+	 */
+	error = clk_set_rate(hdmi->hsm_clock, HSM_CLOCK_FREQ);
+	if (error) {
+		DRM_ERROR("Failed to set HSM clock rate: %d\n", error);
+		goto err_put_i2c;
+	}
+
+	error = clk_prepare_enable(hdmi->hsm_clock);
+	if (error) {
+		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
+			  error);
+		goto err_put_i2c;
+	}
+
+	vc4 = to_vc4_dev(sc->sc_drm_dev);
+	vc4->hdmi = hdmi;
+
+	/* HDMI core must be enabled. */
+	if (!(HD_READ(VC4_HD_M_CTL) & VC4_HD_M_ENABLE)) {
+		HD_WRITE(VC4_HD_M_CTL, VC4_HD_M_SW_RST);
+		udelay(1);
+		HD_WRITE(VC4_HD_M_CTL, 0);
+
+		HD_WRITE(VC4_HD_M_CTL, VC4_HD_M_ENABLE);
+	}
+
+	drm_encoder_init(sc->sc_drm_dev, hdmi->encoder, &vc4_hdmi_encoder_funcs,
+			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_encoder_helper_add(hdmi->encoder, &vc4_hdmi_encoder_helper_funcs);
+
+	hdmi->connector =
+		vc4_hdmi_connector_init(sc->sc_drm_dev, hdmi->encoder, hdmi->ddc);
+	if (IS_ERR(hdmi->connector)) {
+		error = PTR_ERR(hdmi->connector);
+		goto err_destroy_encoder;
+	}
+
 	/* XXX errno Linux->NetBSD */
 	error = -drm_dev_register(sc->sc_drm_dev, 0);
 	if (error) {
@@ -1379,6 +1500,15 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
+	return;
+
+
+err_destroy_encoder:
+	vc4_hdmi_encoder_destroy(hdmi->encoder);
+	clk_disable_unprepare(hdmi->hsm_clock);
+err_put_i2c:
+	return;
+
 }
 #else
 static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)

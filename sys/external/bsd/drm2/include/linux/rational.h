@@ -29,4 +29,12 @@
 #ifndef _LINUX_RATIONAL_H_
 #define _LINUX_RATIONAL_H_
 
+inline void rational_best_approximation(
+	unsigned long num, unsigned long denom,
+	unsigned long max_num, unsigned long max_denom,
+	unsigned long *out_num, unsigned long *out_denom)
+{
+	/* Simply route the inputs back to the output. */
+}
+
 #endif
