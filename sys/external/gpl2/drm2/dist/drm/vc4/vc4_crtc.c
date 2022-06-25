@@ -38,6 +38,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/fdt/fdtvar.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+
+#include <linux/platform_device.h>
 #endif
 
 #include <linux/clk.h>
@@ -221,7 +223,6 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	return ret;
 }
 
-#if notyet
 static void vc4_crtc_destroy(struct drm_crtc *crtc)
 {
 	drm_crtc_cleanup(crtc);
@@ -465,9 +466,7 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	}
 #endif	
 }
-#endif
 
-#if notyet
 static void require_hvs_enabled(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -530,7 +529,6 @@ static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
-#endif
 
 void vc4_crtc_txp_armed(struct drm_crtc_state *state)
 {
@@ -539,7 +537,6 @@ void vc4_crtc_txp_armed(struct drm_crtc_state *state)
 	vc4_state->txp_armed = true;
 }
 
-#if notyet
 static void vc4_crtc_update_dlist(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -619,7 +616,6 @@ static enum drm_mode_status vc4_crtc_mode_valid(struct drm_crtc *crtc,
 
 	return MODE_OK;
 }
-#endif
 
 void vc4_crtc_get_margins(struct drm_crtc_state *state,
 			  unsigned int *left, unsigned int *right,
@@ -652,7 +648,6 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 	}
 }
 
-#if notyet
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *state)
 {
@@ -728,8 +723,7 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 	bus_space_handle_t dlist_start;
 	bus_space_handle_t dlist_next;
 
-	vc4_plane_state = to_vc4_plane_state(plane->state);
-	error = bus_space_subregion(vc4->hvs->bst, vc4->hvs->bsh, 0, vc4_plane_state->dlist_count * sizeof(uint32_t), &dlist_start);
+	error = bus_space_subregion(vc4->hvs->bst, vc4->hvs->bsh, 0, 0, &dlist_start);
 	if (error) {
 		return;
 	}
@@ -835,7 +829,6 @@ static void vc4_disable_vblank(struct drm_crtc *crtc)
 
 	CRTC_WRITE(PV_INTEN, 0);
 }
-#endif
 
 static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 {
@@ -872,8 +865,11 @@ void vc4_crtc_handle_vblank(struct vc4_crtc *crtc)
 	vc4_crtc_handle_page_flip(crtc);
 }
 
-#if notyet
+#ifdef __NetBSD__
+static irqreturn_t vc4_crtc_irq_handler(void *data)
+#else
 static irqreturn_t vc4_crtc_irq_handler(int irq, void *data)
+#endif
 {
 	struct vc4_crtc *vc4_crtc = data;
 	u32 stat = CRTC_READ(PV_INTSTAT);
@@ -1101,6 +1097,7 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.atomic_disable = vc4_crtc_atomic_disable,
 };
 
+#ifndef __NetBSD__
 static const struct vc4_crtc_data pv0_data = {
 	.hvs_channel = 0,
 	.debugfs_name = "crtc0_regs",
@@ -1134,6 +1131,7 @@ static const struct of_device_id vc4_crtc_dt_match[] = {
 	{ .compatible = "brcm,bcm2835-pixelvalve2", .data = &pv2_data },
 	{}
 };
+#endif
 
 static void vc4_set_crtc_possible_masks(struct drm_device *drm,
 					struct drm_crtc *crtc)
@@ -1180,7 +1178,6 @@ vc4_crtc_get_cob_allocation(struct vc4_crtc *vc4_crtc)
 
 	vc4_crtc->cob_size = top - base + 4;
 }
-#endif
 
 #ifdef __NetBSD__
 
@@ -1224,11 +1221,16 @@ vc4_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4crtc_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
+	struct platform_device *pdev;
+	struct vc4_crtc *vc4_crtc;
+	struct drm_crtc *crtc;
+	struct drm_plane *primary_plane, *cursor_plane, *destroy_plane, *temp;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
+	int i;
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
@@ -1246,6 +1248,102 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	vc4_crtc = devm_kzalloc(sc->sc_dev, sizeof(*vc4_crtc), GFP_KERNEL);
+	if (!vc4_crtc) {
+		aprint_error_dev(self, "unable to allocate hvs: %d\n", 
+			ENOMEM);
+		return;
+	}
+	crtc = &vc4_crtc->base;
+
+	pdev = to_platform_device(sc->sc_dev);
+	vc4_crtc->pdev = pdev;
+	vc4_ioremap_regs(pdev, 0, &vc4_crtc->bst, &vc4_crtc->bsh);
+	if (IS_ERR(vc4_crtc->bst)) {
+		aprint_error_dev(self, "unable to map regs: %d\n", 
+			EINVAL);
+		return;		
+	}
+
+	/* For now, we create just the primary and the legacy cursor
+	 * planes.  We should be able to stack more planes on easily,
+	 * but to do that we would need to compute the bandwidth
+	 * requirement of the plane configuration, and reject ones
+	 * that will take too much.
+	 */
+	primary_plane = vc4_plane_init(sc->sc_drm_dev, DRM_PLANE_TYPE_PRIMARY);
+	if (IS_ERR(primary_plane)) {
+		dev_err(sc->sc_dev, "failed to construct primary plane\n");
+		error = PTR_ERR(primary_plane);
+		goto err;
+	}
+
+	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
+				  &vc4_crtc_funcs, NULL);
+	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
+	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
+	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
+	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
+
+	/* We support CTM, but only for one CRTC at a time. It's therefore
+	 * implemented as private driver state in vc4_kms, not here.
+	 */
+	drm_crtc_enable_color_mgmt(crtc, 0, true, crtc->gamma_size);
+
+	/* Set up some arbitrary number of planes.  We're not limited
+	 * by a set number of physical registers, just the space in
+	 * the HVS (16k) and how small an plane can be (28 bytes).
+	 * However, each plane we set up takes up some memory, and
+	 * increases the cost of looping over planes, which atomic
+	 * modesetting does quite a bit.  As a result, we pick a
+	 * modest number of planes to expose, that should hopefully
+	 * still cover any sane usecase.
+	 */
+	for (i = 0; i < 8; i++) {
+		struct drm_plane *plane =
+			vc4_plane_init(sc->sc_drm_dev, DRM_PLANE_TYPE_OVERLAY);
+
+		if (IS_ERR(plane))
+			continue;
+
+		plane->possible_crtcs = drm_crtc_mask(crtc);
+	}
+
+	/* Set up the legacy cursor after overlay initialization,
+	 * since we overlay planes on the CRTC in the order they were
+	 * initialized.
+	 */
+	cursor_plane = vc4_plane_init(sc->sc_drm_dev, DRM_PLANE_TYPE_CURSOR);
+	if (!IS_ERR(cursor_plane)) {
+		cursor_plane->possible_crtcs = drm_crtc_mask(crtc);
+		crtc->cursor = cursor_plane;
+	}
+
+	vc4_crtc_get_cob_allocation(vc4_crtc);
+
+	CRTC_WRITE(PV_INTEN, 0);
+	CRTC_WRITE(PV_INTSTAT, PV_INT_VFP_START);
+	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
+			       vc4_crtc_irq_handler, 0, "vc4 crtc", vc4_crtc);
+	if (error)
+		goto err_destroy_planes;
+
+	vc4_set_crtc_possible_masks(sc->sc_drm_dev, crtc);
+
+	for (i = 0; i < crtc->gamma_size; i++) {
+		vc4_crtc->lut_r[i] = i;
+		vc4_crtc->lut_g[i] = i;
+		vc4_crtc->lut_b[i] = i;
+	}
+	return;
+
+err_destroy_planes:
+	list_for_each_entry_safe(destroy_plane, temp,
+				 &sc->sc_drm_dev->mode_config.plane_list, head) {
+		if (destroy_plane->possible_crtcs == drm_crtc_mask(crtc))
+		    destroy_plane->funcs->destroy(destroy_plane);
+	}
+
 	/* XXX errno Linux->NetBSD */
 	error = -drm_dev_register(sc->sc_drm_dev, 0);
 	if (error) {
@@ -1255,6 +1353,8 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
+err:
+	return;
 }
 
 #else
