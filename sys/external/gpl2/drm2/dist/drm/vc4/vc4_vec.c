@@ -558,6 +558,8 @@ static const char * const tv_mode_names[] = {
 struct vc4vec_softc {
 	device_t		sc_dev;
 	struct drm_device	*sc_drm_dev;
+	void			*sc_pdev;
+	int			sc_phandle;
 };
 
 CFATTACH_DECL_NEW(vcfourvec, sizeof(struct vc4vec_softc),

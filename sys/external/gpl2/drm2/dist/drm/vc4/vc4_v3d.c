@@ -434,6 +434,8 @@ static const struct device_compatible_entry compat_data[] = {
 struct vcfourv3d_softc {
 	device_t		sc_dev;
 	struct drm_device	*sc_drm_dev;
+	void			*sc_pdev;
+	int			sc_phandle;	
 };
 
 CFATTACH_DECL_NEW(vcfourv3d, sizeof(struct vcfourv3d_softc),
