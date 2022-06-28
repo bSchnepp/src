@@ -1628,6 +1628,8 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	sc->sc_phandle = faa->faa_phandle;
+
 	dsi = dev_get_drvdata(sc->sc_dev);
 	/* TODO: Set dsi->port based on the values from the dtb */
 

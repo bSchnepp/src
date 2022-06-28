@@ -354,6 +354,8 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	sc->sc_phandle = faa->faa_phandle;
+
 	dpi = devm_kzalloc(sc->sc_dev, sizeof(*dpi), GFP_KERNEL);
 	if (IS_ERR(dpi)) {
 		aprint_error_dev(self, "unable to register dpi: %ld\n", 

@@ -1250,6 +1250,8 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	sc->sc_phandle = faa->faa_phandle;
+
 	vc4_crtc = devm_kzalloc(sc->sc_dev, sizeof(*vc4_crtc), GFP_KERNEL);
 	if (!vc4_crtc) {
 		aprint_error_dev(self, "unable to allocate hvs: %d\n", 

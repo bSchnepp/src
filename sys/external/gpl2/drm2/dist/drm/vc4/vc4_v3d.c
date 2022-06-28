@@ -481,6 +481,8 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	sc->sc_phandle = faa->faa_phandle;
+
 	vc4 = to_vc4_dev(sc->sc_drm_dev);
 	pdev = to_platform_device(sc->sc_dev);
 

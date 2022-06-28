@@ -334,6 +334,8 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	sc->sc_phandle = faa->faa_phandle;
+
 	/* At any time, the GPU on a bcm2835 (or compatible) device should
 	 * always be present if it will be present at boot time, and never
 	 * disappear from the system.

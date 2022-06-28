@@ -1405,6 +1405,8 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	sc->sc_phandle = faa->faa_phandle;
+
 	hdmi = devm_kzalloc(sc->sc_dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi) {
 		aprint_error_dev(self, "unable to allocate hdmi: %d\n", 

@@ -469,6 +469,8 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	sc->sc_phandle = faa->faa_phandle;
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		aprint_error(": couldn't get irq\n");
