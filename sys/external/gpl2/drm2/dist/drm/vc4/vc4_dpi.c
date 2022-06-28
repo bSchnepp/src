@@ -294,8 +294,8 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 }
 
 #ifdef __NetBSD__
-static int vc4_match(device_t, cfdata_t, void *);
-static void vc4_attach(device_t, device_t, void *);
+static int vc4dpi_match(device_t, cfdata_t, void *);
+static void vc4dpi_attach(device_t, device_t, void *);
 
 static const struct device_compatible_entry compat_data[] = {
 	{ .compat = "brcm,bcm2835-dpi",
@@ -311,20 +311,20 @@ struct vc4dpi_softc {
 };
 
 CFATTACH_DECL_NEW(vcfourdpi, sizeof(struct vc4dpi_softc),
-	vc4_match, vc4_attach, NULL, NULL);
+	vc4dpi_match, vc4dpi_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
 extern struct drm_driver *const vc4_driver;
 
 static int
-vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+vc4dpi_match(device_t parent, cfdata_t cfdata, void *aux)
 {
 	struct fdt_attach_args * const faa = aux;
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
 static void
-vc4_attach(device_t parent, device_t self, void *aux)
+vc4dpi_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4dpi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;

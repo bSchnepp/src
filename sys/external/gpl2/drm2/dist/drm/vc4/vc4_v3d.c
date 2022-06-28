@@ -418,8 +418,8 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 
 #if __NetBSD__
 
-static int vcfourv3d_match(device_t, cfdata_t, void *);
-static void vcfourv3d_attach(device_t, device_t, void *);
+static int vc4v3d_match(device_t, cfdata_t, void *);
+static void vc4v3d_attach(device_t, device_t, void *);
 
 static const struct device_compatible_entry compat_data[] = {
 	{ .compat = "brcm,bcm2835-v3d",
@@ -439,20 +439,20 @@ struct vcfourv3d_softc {
 };
 
 CFATTACH_DECL_NEW(vcfourv3d, sizeof(struct vcfourv3d_softc),
-	vcfourv3d_match, vcfourv3d_attach, NULL, NULL);
+	vc4v3d_match, vc4v3d_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
 extern struct drm_driver *const vc4_driver;
 
 static int
-vcfourv3d_match(device_t parent, cfdata_t cfdata, void *aux)
+vc4v3d_match(device_t parent, cfdata_t cfdata, void *aux)
 {
 	struct fdt_attach_args * const faa = aux;
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
 static void
-vcfourv3d_attach(device_t parent, device_t self, void *aux)
+vc4v3d_attach(device_t parent, device_t self, void *aux)
 {
 	struct vcfourv3d_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;

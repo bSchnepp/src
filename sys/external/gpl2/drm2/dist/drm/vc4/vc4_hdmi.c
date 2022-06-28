@@ -1347,8 +1347,8 @@ static const struct cec_adap_ops vc4_hdmi_cec_adap_ops = {
 #endif
 
 #ifdef __NetBSD__
-static int vc4_match(device_t, cfdata_t, void *);
-static void vc4_attach(device_t, device_t, void *);
+static int vc4hdmi_match(device_t, cfdata_t, void *);
+static void vc4hdmi_attach(device_t, device_t, void *);
 
 static const struct device_compatible_entry compat_data[] = {
 	{ .compat = "brcm,bcm2835-hdmi",
@@ -1364,20 +1364,20 @@ struct vc4hdmi_softc {
 };
 
 CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
-	vc4_match, vc4_attach, NULL, NULL);
+	vc4hdmi_match, vc4hdmi_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
 extern struct drm_driver *const vc4_driver;
 
 static int
-vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+vc4hdmi_match(device_t parent, cfdata_t cfdata, void *aux)
 {
 	struct fdt_attach_args * const faa = aux;
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
 static void
-vc4_attach(device_t parent, device_t self, void *aux)
+vc4hdmi_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4hdmi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;

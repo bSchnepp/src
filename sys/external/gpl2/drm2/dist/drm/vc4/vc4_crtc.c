@@ -1181,8 +1181,8 @@ vc4_crtc_get_cob_allocation(struct vc4_crtc *vc4_crtc)
 
 #ifdef __NetBSD__
 
-static int vc4_match(device_t, cfdata_t, void *);
-static void vc4_attach(device_t, device_t, void *);
+static int vc4crtc_match(device_t, cfdata_t, void *);
+static void vc4crtc_attach(device_t, device_t, void *);
 
 static const struct vc4_crtc_data pvalve0_data;
 static const struct vc4_crtc_data pvalve1_data;
@@ -1206,20 +1206,20 @@ struct vc4crtc_softc {
 };
 
 CFATTACH_DECL_NEW(vcfourcrtc, sizeof(struct vc4crtc_softc),
-	vc4_match, vc4_attach, NULL, NULL);
+	vc4crtc_match, vc4crtc_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
 extern struct drm_driver *const vc4_driver;
 
 static int
-vc4_match(device_t parent, cfdata_t cfdata, void *aux)
+vc4crtc_match(device_t parent, cfdata_t cfdata, void *aux)
 {
 	struct fdt_attach_args * const faa = aux;
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
 static void
-vc4_attach(device_t parent, device_t self, void *aux)
+vc4crtc_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4crtc_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
