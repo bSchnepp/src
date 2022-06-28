@@ -257,6 +257,13 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *ddev,
 	return &obj->base;
 }
 
+int drm_gem_cma_prime_mmap(struct drm_gem_object *gem_obj, off_t *offp, 
+    size_t len, int prot, int *flagsp, int *advicep, struct uvm_object **uobjp, 
+    int *maxprotp)
+{
+	return 0;
+}
+
 void *
 drm_gem_cma_prime_vmap(struct drm_gem_object *gem_obj)
 {

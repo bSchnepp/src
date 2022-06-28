@@ -42,7 +42,12 @@ struct semaphore {
  */
 #define	DEFINE_SEMAPHORE(name)	struct semaphore name
 
-void sema_init(struct semaphore *sem, int v);
+void _sema_init(struct semaphore *s, int value);
+inline void sema_init(struct semaphore *sem, int v)
+{
+	_sema_init(sem, v);
+}
+
 void down(struct semaphore *sem);
 int down_interruptible(struct semaphore *sem);
 int down_trylock(struct semaphore *sem);

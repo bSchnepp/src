@@ -302,8 +302,11 @@ vc4_irq_uninstall(struct drm_device *dev)
 	/* Clear any pending interrupts we might have left. */
 	V3D_WRITE(V3D_INTCTL, V3D_DRIVER_IRQS);
 
+	/* disable_irq is a stub for NetBSD. */
+#ifndef __NetBSD__
 	/* Finish any interrupt handler still in flight. */
 	disable_irq(dev->irq);
+#endif
 
 	cancel_work_sync(&vc4->overflow_mem_work);
 }
