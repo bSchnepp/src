@@ -44,6 +44,11 @@ __KERNEL_RCSID(0, "$NetBSD: drm_gem_framebuffer_helper.c,v 1.3 2021/12/19 09:49:
 
 #include <uapi/drm/drm_mode.h>
 
+static const struct drm_framebuffer_funcs default_drm_gem_fb_functions = {
+	.create_handle = drm_gem_fb_create_handle,
+	.destroy = drm_gem_fb_destroy,
+};
+
 /*
  * drm_gem_fb_destroy(fb)
  *
@@ -160,13 +165,29 @@ fail0:	KASSERT(ret);
 	return ERR_PTR(ret);
 }
 
+/*
+ * drm_gem_fb_create(dev, file, mode_cmd)
+ *
+ *	Create a framebuffer in the specified drm device from the given
+ *	mode command, resolving mode_cmd's handles in the specified drm
+ *	file.
+ *
+ *	Returns pointer on success, ERR_PTR on failure.
+ *
+ *	ENOENT	missing handle
+ *	EINVAL	wrong size object, invalid mode format
+ */
 struct drm_framebuffer *
 drm_gem_fb_create(struct drm_device *dev, struct drm_file *file,
 		  const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	return NULL;
+	return drm_gem_fb_create_with_funcs(dev, file, mode_cmd, 
+					    &default_drm_gem_fb_functions);
 }
 
+/*
+ * drm_gem_fb_prepare_fb(plane, state)
+ */
 int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
