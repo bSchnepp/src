@@ -377,11 +377,11 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 
 	pdev = to_platform_device(sc->sc_dev);
 	dpi->pdev = pdev;
-	vc4_ioremap_regs(pdev, 0, &dpi->bst, &dpi->bsh);
-	if (IS_ERR(dpi->bst)) {
-		aprint_error_dev(self, "unable to map regs: %d\n", 
-			EINVAL);
-		return;		
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &dpi->bsh);
+	if (error) {
+		aprint_error(": failed to map register %#lx@%#lx: %d\n",
+		    size, addr, error);
+		return;
 	}	
 
 	if (DPI_READ(DPI_ID) != DPI_ID_VALUE) {

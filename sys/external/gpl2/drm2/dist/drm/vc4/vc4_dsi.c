@@ -1646,7 +1646,12 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	dsi->encoder = &vc4_dsi_encoder->base.base;
 
 	pdev = to_platform_device(sc->sc_dev);
-	vc4_ioremap_regs(pdev, 0, &dsi->bst, &dsi->bsh);
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &dsi->bsh);
+	if (error) {
+		aprint_error(": failed to map register %#lx@%#lx: %d\n",
+		    size, addr, error);
+		return;
+	}
 
 	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
 		aprint_error(": got invalid dsi ID: got 0x%x, expected 0x%x\n",

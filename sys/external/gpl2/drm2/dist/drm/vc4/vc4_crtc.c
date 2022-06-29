@@ -1262,11 +1262,11 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 
 	pdev = to_platform_device(sc->sc_dev);
 	vc4_crtc->pdev = pdev;
-	vc4_ioremap_regs(pdev, 0, &vc4_crtc->bst, &vc4_crtc->bsh);
-	if (IS_ERR(vc4_crtc->bst)) {
-		aprint_error_dev(self, "unable to map regs: %d\n", 
-			EINVAL);
-		return;		
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &vc4_crtc->bsh);
+	if (error) {
+		aprint_error(": failed to map register %#lx@%#lx: %d\n",
+		    size, addr, error);
+		return;
 	}
 
 	/* For now, we create just the primary and the legacy cursor

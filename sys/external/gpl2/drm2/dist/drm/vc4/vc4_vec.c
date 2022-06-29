@@ -633,11 +633,11 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	vc4_vec_encoder->vec = vec;
 	vec->encoder = &vc4_vec_encoder->base.base;
 	vec->pdev = pdev;
-	vc4_ioremap_regs(pdev, 0, &vec->bst, &vec->bsh);
-	if (IS_ERR(vec->bst)) {
-		aprint_error_dev(self, "unable to map regs: %d\n", 
-			EINVAL);
-		return;		
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &vec->bsh);
+	if (error) {
+		aprint_error(": failed to map register %#lx@%#lx: %d\n",
+		    size, addr, error);
+		return;
 	}
 
 	vec->clock = fdtbus_clock_get(phandle, NULL);

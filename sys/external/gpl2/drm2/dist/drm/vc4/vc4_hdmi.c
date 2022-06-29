@@ -1416,11 +1416,18 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	pdev = to_platform_device(sc->sc_dev);
 	hdmi->pdev = pdev;
-	vc4_ioremap_regs(pdev, 0, &hdmi->hdmicore_bst, &hdmi->hdmicore_bsh);
-	if (IS_ERR(hdmi->hdmicore_bst)) {
-		aprint_error_dev(self, "unable to map hdmicore regs: %d\n", 
-			EINVAL);
-		return;		
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &hdmi->hdmicore_bsh);
+	if (error) {
+		aprint_error(": failed to map register %#lx@%#lx: %d\n",
+		    size, addr, error);
+		return;
+	}	
+
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &hdmi->hd_bsh);
+	if (error) {
+		aprint_error(": failed to map register %#lx@%#lx: %d\n",
+		    size, addr, error);
+		return;
 	}	
 
 	hdmi->pixel_clock = fdtbus_clock_get(sc->sc_phandle, "pixel");
