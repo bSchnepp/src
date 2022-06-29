@@ -408,7 +408,7 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	error = clk_prepare_enable(dpi->core_clock);
+	error = clk_enable(dpi->core_clock);
 	if (error)
 		DRM_ERROR("Failed to turn on core clock: %d\n", error);
 

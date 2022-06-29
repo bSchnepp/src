@@ -516,7 +516,7 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	error = clk_prepare_enable(v3d->clk);
+	error = clk_enable(v3d->clk);
 	if (error != 0)
 		return;
 

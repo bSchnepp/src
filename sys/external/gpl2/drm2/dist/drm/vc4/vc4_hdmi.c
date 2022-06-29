@@ -1455,7 +1455,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		goto err_put_i2c;
 	}
 
-	error = clk_prepare_enable(hdmi->hsm_clock);
+	error = clk_enable(hdmi->hsm_clock);
 	if (error) {
 		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
 			  error);
@@ -1472,7 +1472,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		goto err_put_i2c;
 	}
 
-	error = clk_prepare_enable(hdmi->hsm_clock);
+	error = clk_enable(hdmi->hsm_clock);
 	if (error) {
 		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
 			  error);
