@@ -242,6 +242,10 @@ vc4_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
+#ifdef notyet
+	struct platform_device * pdev = NULL;
+#endif
+	struct vc4_dev * vc4;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -264,6 +268,54 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+#ifdef notyet
+	sc->sc_dev->coherent_dma_mask = DMA_BIT_MASK(32);
+#endif
+
+	vc4 = devm_kzalloc(sc->sc_dev, sizeof(*vc4), GFP_KERNEL);
+	if (!vc4) {
+		aprint_error_dev(self, "unable to allocate vc4: %d\n", 
+			ENOMEM);
+		return;
+	}
+
+#ifdef notyet
+	pdev = to_platform_device(sc->sc_dev);
+	platform_set_drvdata(pdev, sc->sc_drm_dev);
+#endif
+	vc4->dev = sc->sc_drm_dev;
+	sc->sc_drm_dev->dev_private = vc4;
+	INIT_LIST_HEAD(&vc4->debugfs_list);
+
+	linux_mutex_init(&vc4->bin_bo_lock);
+
+	error = vc4_bo_cache_init(sc->sc_drm_dev);
+	if (error)
+		goto dev_put;
+
+	drm_mode_config_init(sc->sc_drm_dev);
+
+	vc4_gem_init(sc->sc_drm_dev);
+
+#ifdef notyet
+	error = component_bind_all(sc->sc_dev, sc->sc_drm_dev);
+	if (error)
+		goto gem_destroy;
+#endif
+
+	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
+
+	error = vc4_kms_load(sc->sc_drm_dev);
+	if (error < 0)
+		goto unbind_all;
+
+	error = drm_dev_register(sc->sc_drm_dev, 0);
+	if (error < 0)
+		goto unbind_all;
+
+	drm_fbdev_generic_setup(sc->sc_drm_dev, 16);
+	return;
+
 	/* XXX errno Linux->NetBSD */
 	error = -drm_dev_register(sc->sc_drm_dev, 0);
 	if (error) {
@@ -273,6 +325,18 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
+	return;
+
+unbind_all:
+#ifdef notyet
+	component_unbind_all(dev, drm);
+gem_destroy:
+#endif
+	vc4_gem_destroy(sc->sc_drm_dev);
+	vc4_bo_cache_destroy(sc->sc_drm_dev);
+dev_put:
+	drm_dev_put(sc->sc_drm_dev);
+	return;
 }
 #endif
 
