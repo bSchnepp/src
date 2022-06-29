@@ -393,14 +393,14 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 	vc4 = to_vc4_dev(sc->sc_drm_dev);
 	vc4->dpi = dpi;
 
-	dpi->core_clock = devm_clk_get(sc->sc_dev , "core");
+	dpi->core_clock = fdtbus_clock_get(sc->sc_phandle , "core");
 	if (IS_ERR(dpi->core_clock)) {
 		error = PTR_ERR(dpi->core_clock);
 		if (error != -EPROBE_DEFER)
 			DRM_ERROR("Failed to get core clock: %d\n", error);
 		return;
 	}
-	dpi->pixel_clock = devm_clk_get(sc->sc_dev , "pixel");
+	dpi->pixel_clock = fdtbus_clock_get(sc->sc_phandle, "pixel");
 	if (IS_ERR(dpi->pixel_clock)) {
 		error = PTR_ERR(dpi->pixel_clock);
 		if (error != -EPROBE_DEFER)

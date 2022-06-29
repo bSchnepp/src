@@ -1423,13 +1423,13 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		return;		
 	}	
 
-	hdmi->pixel_clock = devm_clk_get(sc->sc_dev, "pixel");
+	hdmi->pixel_clock = fdtbus_clock_get(sc->sc_phandle, "pixel");
 	if (IS_ERR(hdmi->pixel_clock)) {
 		aprint_error_dev(self, "could not get pixel clock: %d\n", 
 			EINVAL);
 		return;	
 	}
-	hdmi->hsm_clock = devm_clk_get(sc->sc_dev, "hdmi");
+	hdmi->hsm_clock = fdtbus_clock_get(sc->sc_phandle, "hdmi");
 	if (IS_ERR(hdmi->hsm_clock)) {
 		aprint_error_dev(self, "could not get hdmi hsm clock: %d\n", 
 			EINVAL);
