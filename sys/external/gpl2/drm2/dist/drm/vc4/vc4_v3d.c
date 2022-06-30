@@ -436,13 +436,15 @@ struct vcfourv3d_softc {
 	struct drm_device	*sc_drm_dev;
 	void			*sc_pdev;
 	int			sc_phandle;	
+	struct vc4_v3d		sc_v3d;
+	void			*sc_ih;
 };
 
 CFATTACH_DECL_NEW(vcfourv3d, sizeof(struct vcfourv3d_softc),
 	vc4v3d_match, vc4v3d_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_driver;
+extern struct drm_device *vc4_drm_device;
 
 static int
 vc4v3d_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -456,9 +458,7 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 {
 	struct vcfourv3d_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	struct platform_device *pdev = NULL;
-	struct vc4_dev *vc4 = NULL;
-	struct vc4_v3d *v3d = NULL;
+	struct vc4_dev * vc4 = NULL;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -466,16 +466,8 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 	int error;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
+	sc->sc_drm_dev = vc4_drm_device;
 	sc->sc_drm_dev->bst = faa->faa_bst;
-	sc->sc_drm_dev->dmat = faa->faa_dmat;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
@@ -483,32 +475,24 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_phandle = faa->faa_phandle;
 
-	vc4 = to_vc4_dev(sc->sc_drm_dev);
-	pdev = to_platform_device(sc->sc_dev);
-
-	v3d = devm_kzalloc(sc->sc_dev, sizeof(*v3d), GFP_KERNEL);
-	if (!v3d) {
-		aprint_error(": could not allocate memory %d\n", ENOMEM);
-		return;
-	}
-
 #ifdef notyet
 	dev_set_drvdata(sc->sc_dev, v3d);
 #endif
 
-	v3d->pdev = pdev;
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &v3d->bsh);
+	sc->sc_v3d.pdev = NULL;
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_v3d.bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
 		return;
 	}
 
-	vc4->v3d = v3d;
-	v3d->vc4 = vc4;
+	vc4 = to_vc4_dev(sc->sc_drm_dev);
+	sc->sc_v3d.vc4->v3d = &sc->sc_v3d;
+	sc->sc_v3d.vc4 = vc4;
 
 	/* May be okay without a clock. Reference Linux driver. */
-	v3d->clk = fdtbus_clock_get(phandle, NULL);
+	sc->sc_v3d.clk = fdtbus_clock_get(phandle, NULL);
 
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
 		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
@@ -516,7 +500,7 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	error = clk_enable(v3d->clk);
+	error = clk_enable(sc->sc_v3d.clk);
 	if (error != 0)
 		return;
 
@@ -532,13 +516,6 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		aprint_error_dev(self, "cannot set up v3d irq: %d\n", 
 			error);
 		return;	
-	}
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
 	}
 
 	aprint_naive("\n");
