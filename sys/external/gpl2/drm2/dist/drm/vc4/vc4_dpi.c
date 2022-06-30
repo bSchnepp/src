@@ -308,13 +308,15 @@ struct vc4dpi_softc {
 	struct drm_device	*sc_drm_dev;
 	void			*sc_pdev;
 	int			sc_phandle;
+	struct vc4_dpi		sc_dpi;
+	struct vc4_dpi_encoder	sc_dpi_encoder;
 };
 
 CFATTACH_DECL_NEW(vcfourdpi, sizeof(struct vc4dpi_softc),
 	vc4dpi_match, vc4dpi_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_driver;
+extern struct drm_device *vc4_drm_device;
 
 static int
 vc4dpi_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -332,52 +334,25 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
-	struct vc4_dpi * dpi;
-	struct vc4_dpi_encoder * vc4_dpi_encoder;
-	struct platform_device * pdev = NULL;
+
 	struct vc4_dev * vc4 = NULL;
+	struct vc4_dpi * dpi = NULL;
 	int error;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
+	sc->sc_drm_dev = vc4_drm_device;
 	sc->sc_drm_dev->bst = faa->faa_bst;
-	sc->sc_drm_dev->dmat = faa->faa_dmat;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
 	}
 
-	sc->sc_phandle = faa->faa_phandle;
+	sc->sc_dpi_encoder.base.type = VC4_ENCODER_TYPE_DPI;
+	sc->sc_dpi_encoder.dpi = &sc->sc_dpi;
+	sc->sc_dpi.encoder = &sc->sc_dpi_encoder.base.base;
 
-	dpi = devm_kzalloc(sc->sc_dev, sizeof(*dpi), GFP_KERNEL);
-	if (IS_ERR(dpi)) {
-		aprint_error_dev(self, "unable to register dpi: %ld\n", 
-			PTR_ERR(dpi));
-		return;
-	}
-
-	vc4_dpi_encoder = devm_kzalloc(sc->sc_dev, sizeof(*vc4_dpi_encoder),
-				       GFP_KERNEL);
-	if (IS_ERR(vc4_dpi_encoder)) {
-		aprint_error_dev(self, "unable to register encoder: %ld\n", 
-			PTR_ERR(vc4_dpi_encoder));
-		return;
-	}
-
-	vc4_dpi_encoder->base.type = VC4_ENCODER_TYPE_DPI;
-	vc4_dpi_encoder->dpi = dpi;
-	dpi->encoder = &vc4_dpi_encoder->base.base;
-
-	pdev = to_platform_device(sc->sc_dev);
-	dpi->pdev = pdev;
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &dpi->bsh);
+	sc->sc_dpi.pdev = NULL;
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_dpi.bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
@@ -390,6 +365,7 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 		return;	
 	}
 
+	dpi = &sc->sc_dpi;
 	vc4 = to_vc4_dev(sc->sc_drm_dev);
 	vc4->dpi = dpi;
 
@@ -423,13 +399,6 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 #ifdef notyet
 	dev_set_drvdata(dev, dpi);
 #endif
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
-	}
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
