@@ -1203,13 +1203,15 @@ struct vc4crtc_softc {
 	struct drm_device	*sc_drm_dev;
 	void			*sc_pdev;
 	int			sc_phandle;
+	struct vc4_crtc		sc_crtc;
+	void			*sc_ih;
 };
 
 CFATTACH_DECL_NEW(vcfourcrtc, sizeof(struct vc4crtc_softc),
 	vc4crtc_match, vc4crtc_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_driver;
+extern struct drm_device *vc4_drm_device;
 
 static int
 vc4crtc_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -1223,7 +1225,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4crtc_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	struct platform_device *pdev;
 	struct vc4_crtc *vc4_crtc;
 	struct drm_crtc *crtc;
 	struct drm_plane *primary_plane, *cursor_plane, *destroy_plane, *temp;
@@ -1235,34 +1236,18 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	int i;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
+	sc->sc_drm_dev = vc4_drm_device;
 	sc->sc_drm_dev->bst = faa->faa_bst;
-	sc->sc_drm_dev->dmat = faa->faa_dmat;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
 	}
 
 	sc->sc_phandle = faa->faa_phandle;
+	crtc = &sc->sc_crtc.base;
 
-	vc4_crtc = devm_kzalloc(sc->sc_dev, sizeof(*vc4_crtc), GFP_KERNEL);
-	if (!vc4_crtc) {
-		aprint_error_dev(self, "unable to allocate hvs: %d\n", 
-			ENOMEM);
-		return;
-	}
-	crtc = &vc4_crtc->base;
-
-	pdev = to_platform_device(sc->sc_dev);
-	vc4_crtc->pdev = pdev;
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &vc4_crtc->bsh);
+	sc->sc_crtc.pdev = NULL;
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_crtc.bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
@@ -1285,8 +1270,8 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
 				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
-	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
-	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
+	sc->sc_crtc.channel = sc->sc_crtc.data->hvs_channel;
+	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(sc->sc_crtc.lut_r));
 	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
 
 	/* We support CTM, but only for one CRTC at a time. It's therefore
@@ -1323,14 +1308,16 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		crtc->cursor = cursor_plane;
 	}
 
-	vc4_crtc_get_cob_allocation(vc4_crtc);
+	vc4_crtc_get_cob_allocation(&sc->sc_crtc);
 
+	vc4_crtc = &sc->sc_crtc;
 	CRTC_WRITE(PV_INTEN, 0);
 	CRTC_WRITE(PV_INTSTAT, PV_INT_VFP_START);
-	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
-			       vc4_crtc_irq_handler, 0, "vc4 crtc", vc4_crtc);
-	if (error)
+	sc->sc_ih = fdtbus_intr_establish(phandle, 0, IPL_VM, IST_LEVEL,
+	    vc4_crtc_irq_handler, &sc->sc_crtc);
+	if (sc->sc_ih == NULL) {
 		goto err_destroy_planes;
+	}
 
 	vc4_set_crtc_possible_masks(sc->sc_drm_dev, crtc);
 
@@ -1346,13 +1333,6 @@ err_destroy_planes:
 				 &sc->sc_drm_dev->mode_config.plane_list, head) {
 		if (destroy_plane->possible_crtcs == drm_crtc_mask(crtc))
 		    destroy_plane->funcs->destroy(destroy_plane);
-	}
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
 	}
 
 	aprint_naive("\n");
