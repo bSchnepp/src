@@ -286,13 +286,15 @@ struct vcfourhvs_softc {
 	struct drm_device	*sc_drm_dev;
 	void			*sc_pdev;
 	int			sc_phandle;
+	struct vc4_hvs		sc_hvs;
+	void			*sc_ih;
 };
 
 CFATTACH_DECL_NEW(vcfourhvs, sizeof(struct vcfourhvs_softc),
 	vc4hvs_match, vc4hvs_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_driver;
+extern struct drm_device *vc4_drm_device;
 
 static int
 vc4hvs_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -309,7 +311,6 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 
 	struct vc4_hvs * hvs = NULL;
 	struct vc4_dev * vc4 = NULL;
-	struct platform_device * pdev = NULL;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -319,38 +320,14 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	uint32_t dispcfg = 0;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
+	sc->sc_drm_dev = vc4_drm_device;
 	sc->sc_drm_dev->bst = faa->faa_bst;
-	sc->sc_drm_dev->dmat = faa->faa_dmat;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
 	}
 
 	sc->sc_phandle = faa->faa_phandle;
-
-	/* At any time, the GPU on a bcm2835 (or compatible) device should
-	 * always be present if it will be present at boot time, and never
-	 * disappear from the system.
-	 * 
-	 * In other words, the initialization of the GPU will be done precisely
-	 * once when the driver is loaded, and uninitialization done only
-	 * at shutdown. No other conditions are possible.
-	 */
-
-	hvs = devm_kzalloc(sc->sc_dev, sizeof(*hvs), GFP_KERNEL);
-	if (!hvs) {
-		aprint_error_dev(self, "unable to allocate hvs: %d\n", 
-			ENOMEM);
-		return;
-	}
 
 	error = bus_space_map(faa->faa_bst, addr, size, 0, &hvs->bsh);
 	if (error) {
@@ -416,20 +393,10 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	dispcfg |= VC4_SET_FIELD(2, SCALER_DISPCTRL_DSP3_MUX);
 	HVS_WRITE(SCALER_DISPCTRL, dispcfg);	
 
-	vc4 = to_vc4_dev(sc->sc_drm_dev);
-	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
-			       vc4_hvs_irq_handler, 0, "vc4 hvs", 
-			       sc->sc_drm_dev);
-	if (error) {
-		aprint_error_dev(self, "unable to register irq: %d\n", 
-			error);
-		return;
-	}
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
+	sc->sc_ih = fdtbus_intr_establish(phandle, 0, IPL_VM, IST_LEVEL,
+			       vc4_hvs_irq_handler, &sc->sc_hvs);
+	if (sc->sc_ih == NULL) {
+		aprint_error_dev(self, "unable to register irq: %d\n", error);
 		return;
 	}
 

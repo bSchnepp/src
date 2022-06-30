@@ -560,13 +560,16 @@ struct vc4vec_softc {
 	struct drm_device	*sc_drm_dev;
 	void			*sc_pdev;
 	int			sc_phandle;
+	struct vc4_vec		sc_vec;
+	struct vc4_vec_encoder	sc_vec_encoder;
+	void			*sc_ih;
 };
 
 CFATTACH_DECL_NEW(vcfourvec, sizeof(struct vc4vec_softc),
 	vc4vec_match, vc4vec_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_driver;
+extern struct drm_device *vc4_drm_device;
 
 static int
 vc4vec_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -578,14 +581,8 @@ vc4vec_match(device_t parent, cfdata_t cfdata, void *aux)
 static void
 vc4vec_attach(device_t parent, device_t self, void *aux)
 {
-	struct vc4_dev * vc4 = NULL;
-	struct vc4_vec * vec = NULL;
-
-	struct platform_device *pdev = NULL;
 	struct vc4vec_softc *const sc = device_private(self);
-
 	struct fdt_attach_args * const faa = aux;
-	struct vc4_vec_encoder * vc4_vec_encoder;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -593,16 +590,8 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	int error;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
+	sc->sc_drm_dev = vc4_drm_device;
 	sc->sc_drm_dev->bst = faa->faa_bst;
-	sc->sc_drm_dev->dmat = faa->faa_dmat;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
@@ -617,32 +606,19 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	vec = devm_kzalloc(sc->sc_dev, sizeof(*vec), GFP_KERNEL);
-	if (!vec) {
-		aprint_error_dev(self, "unable to initialize vc3 vec module: %d\n", ENOMEM);
-		return;		
-	}
-
-	vc4_vec_encoder = devm_kzalloc(sc->sc_dev, sizeof(*vc4_vec_encoder),
-				       GFP_KERNEL);
-	if (!vc4_vec_encoder) {
-		aprint_error_dev(self, "unable to initialize vc3 vec encoder module: %d\n", ENOMEM);
-		return;		
-	}
-	vc4_vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
-	vc4_vec_encoder->vec = vec;
-	vec->encoder = &vc4_vec_encoder->base.base;
-	vec->pdev = pdev;
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &vec->bsh);
+	sc->sc_vec_encoder.base.type = VC4_ENCODER_TYPE_VEC;
+	sc->sc_vec_encoder.vec = &sc->sc_vec;
+	sc->sc_vec.encoder = &sc->sc_vec_encoder.base.base;
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_vec.bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
 		return;
 	}
 
-	vec->clock = fdtbus_clock_get(phandle, NULL);
-	if (vec->clock == NULL) {
-		error = PTR_ERR(vec->clock);
+	sc->sc_vec.clock = fdtbus_clock_get(phandle, NULL);
+	if (sc->sc_vec.clock == NULL) {
+		error = PTR_ERR(sc->sc_vec.clock);
 		if (error != -EPROBE_DEFER) {
 			aprint_error(": couldn't get clock");
 		}
@@ -653,36 +629,20 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	pm_runtime_enable(sc->sc_dev);
 #endif
 
-	drm_encoder_init(sc->sc_drm_dev, vec->encoder, &vc4_vec_encoder_funcs,
+	drm_encoder_init(sc->sc_drm_dev, sc->sc_vec.encoder, &vc4_vec_encoder_funcs,
 			 DRM_MODE_ENCODER_TVDAC, NULL);
-	drm_encoder_helper_add(vec->encoder, &vc4_vec_encoder_helper_funcs);
-
-
-	vec->connector = vc4_vec_connector_init(sc->sc_drm_dev, vec);
-	if (IS_ERR(vec->connector)) {
-		error = PTR_ERR(vec->connector);
-		goto err_destroy_encoder;
-	}
+	drm_encoder_helper_add(sc->sc_vec.encoder, &vc4_vec_encoder_helper_funcs);
+	sc->sc_vec.connector = vc4_vec_connector_init(sc->sc_drm_dev, &sc->sc_vec);
 
 #ifdef notyet
 	dev_set_drvdata(sc->sc_dev, vec);
 #endif
-	vc4 = to_vc4_dev(sc->sc_drm_dev);
-	vc4->vec = vec;
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
-	}
+	to_vc4_dev(vc4_drm_device)->vec = &sc->sc_vec;
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
 	return;
 
-err_destroy_encoder:
-	drm_encoder_cleanup(vec->encoder);
 #ifdef notyet
 	pm_runtime_disable(dev);
 #endif
