@@ -425,13 +425,15 @@ struct vc4txp_softc {
 	struct drm_device	*sc_drm_dev;
 	void			*sc_pdev;
 	int			sc_phandle;
+	struct vc4_txp		sc_txp;
+	void			*sc_ih;
 };
 
 CFATTACH_DECL_NEW(vcfourtxp, sizeof(struct vc4txp_softc),
 	vc4txp_match, vc4txp_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_driver;
+extern struct drm_device *vc4_drm_device;
 
 static int
 vc4txp_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -445,47 +447,29 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4txp_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	struct vc4_txp * txp = NULL;
-	struct platform_device * pdev = NULL;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
-	int error, irq;
+	int error;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
+	sc->sc_drm_dev = vc4_drm_device;
 	sc->sc_drm_dev->bst = faa->faa_bst;
-	sc->sc_drm_dev->dmat = faa->faa_dmat;
+
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
 	}
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_txp.bsh);
+	if (error) {
+		aprint_error(": failed to map register %#lx@%#lx: %d\n",
+		    size, addr, error);
+ 		return;
+ 	}
 
-	sc->sc_phandle = faa->faa_phandle;
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		aprint_error(": couldn't get irq\n");
-		return;		
-	}
-
-	txp = devm_kzalloc(sc->sc_dev, sizeof(*txp), GFP_KERNEL);
-	if (!txp) {
-		aprint_error_dev(self, "unable to allocate txp: %d\n", ENOMEM);
-		return;
-	}
-
-	pdev = to_platform_device(sc->sc_dev);	
-
-	drm_connector_helper_add(&txp->connector.base,
+	sc->sc_phandle = faa->faa_phandle;	
+	drm_connector_helper_add(&sc->sc_txp.connector.base,
 				 &vc4_txp_connector_helper_funcs);
 #ifdef notyet
 	error = drm_writeback_connector_init(drm, &txp->connector,
@@ -494,17 +478,10 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
 					   drm_fmts, ARRAY_SIZE(drm_fmts));
 #endif
 
-	error = -devm_request_irq(sc->sc_dev, irq, vc4_txp_interrupt, 0,
-			       dev_name(sc->sc_dev), txp);
-	if (error) {
+	sc->sc_ih = fdtbus_intr_establish(phandle, 0, IPL_VM, IST_LEVEL,
+			       vc4_txp_interrupt, &sc->sc_txp);
+	if (sc->sc_ih == NULL) {
 		aprint_error_dev(self, "unable to register irq: %d\n", error);
-		return;
-	}
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
 		return;
 	}
 

@@ -229,6 +229,7 @@ CFATTACH_DECL_NEW(vcfour, sizeof(struct vc4_softc),
 
 /* XXX Kludge to get these from vc4_drv.c.  */
 extern struct drm_driver *const vc4_driver;
+struct drm_device *vc4_drm_device;
 
 static int
 vc4_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -260,6 +261,8 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		sc->sc_drm_dev = NULL;
 		return;
 	}
+
+	vc4_drm_device = sc->sc_drm_dev;
 
 	sc->sc_drm_dev->bst = faa->faa_bst;
 	sc->sc_drm_dev->dmat = faa->faa_dmat;
