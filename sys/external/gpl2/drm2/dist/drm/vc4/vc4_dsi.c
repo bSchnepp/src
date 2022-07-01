@@ -1661,7 +1661,7 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	dsi->escape_clock = devm_clk_get(sc->sc_dev, "escape");
+	dsi->escape_clock = fdtbus_clock_get(phandle, "escape");
 	if (IS_ERR(dsi->escape_clock)) {
 		error = PTR_ERR(dsi->escape_clock);
 		if (error != -EPROBE_DEFER)
@@ -1669,7 +1669,7 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	dsi->pll_phy_clock = devm_clk_get(sc->sc_dev, "phy");
+	dsi->pll_phy_clock = fdtbus_clock_get(phandle, "phy");
 	if (IS_ERR(dsi->pll_phy_clock)) {
 		error = PTR_ERR(dsi->pll_phy_clock);
 		if (error != -EPROBE_DEFER)
@@ -1677,7 +1677,7 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	dsi->pixel_clock = devm_clk_get(sc->sc_dev, "pixel");
+	dsi->pixel_clock = fdtbus_clock_get(phandle, "pixel");
 	if (IS_ERR(dsi->pixel_clock)) {
 		error = PTR_ERR(dsi->pixel_clock);
 		if (error != -EPROBE_DEFER)
