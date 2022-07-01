@@ -1384,61 +1384,44 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	struct fdt_attach_args * const faa = aux;
 	struct vc4_dev * vc4 = NULL;
 	struct vc4_hdmi *hdmi;
-	struct platform_device *pdev = NULL;
+
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
+	sc->sc_drm_dev = vc4_drm_device;
 	sc->sc_drm_dev->bst = faa->faa_bst;
-	sc->sc_drm_dev->dmat = faa->faa_dmat;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
 	}
 
 	sc->sc_phandle = faa->faa_phandle;
-
-	hdmi = devm_kzalloc(sc->sc_dev, sizeof(*hdmi), GFP_KERNEL);
-	if (!hdmi) {
-		aprint_error_dev(self, "unable to allocate hdmi: %d\n", 
-			ENOMEM);
-		return;
-	}
-
-	pdev = to_platform_device(sc->sc_dev);
-	hdmi->pdev = pdev;
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &hdmi->hdmicore_bsh);
+	sc->sc_hdmi->pdev = NULL;
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_hdmi.hdmicore_bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
 		return;
 	}	
 
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &hdmi->hd_bsh);
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_hdmi.hd_bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
 		return;
 	}	
 
-	hdmi->pixel_clock = fdtbus_clock_get(sc->sc_phandle, "pixel");
-	if (IS_ERR(hdmi->pixel_clock)) {
+	sc->sc_hdmi.pixel_clock = fdtbus_clock_get(sc->sc_phandle, "pixel");
+	if (IS_ERR(sc->sc_hdmi.pixel_clock)) {
 		aprint_error_dev(self, "could not get pixel clock: %d\n", 
 			EINVAL);
 		return;	
 	}
-	hdmi->hsm_clock = fdtbus_clock_get(sc->sc_phandle, "hdmi");
-	if (IS_ERR(hdmi->hsm_clock)) {
+	sc->sc_hdmi.hsm_clock = fdtbus_clock_get(sc->sc_phandle, "hdmi");
+	if (IS_ERR(sc->sc_hdmi.hsm_clock)) {
 		aprint_error_dev(self, "could not get hdmi hsm clock: %d\n", 
 			EINVAL);
 		return;	
@@ -1450,13 +1433,13 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	 * needs to be a bit higher than the pixel clock rate
 	 * (generally 148.5Mhz).
 	 */
-	error = clk_set_rate(hdmi->hsm_clock, HSM_CLOCK_FREQ);
+	error = clk_set_rate(sc->sc_hdmi.hsm_clock, HSM_CLOCK_FREQ);
 	if (error) {
 		DRM_ERROR("Failed to set HSM clock rate: %d\n", error);
 		goto err_put_i2c;
 	}
 
-	error = clk_enable(hdmi->hsm_clock);
+	error = clk_enable(sc->sc_hdmi.hsm_clock);
 	if (error) {
 		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
 			  error);
@@ -1467,13 +1450,13 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	 * needs to be a bit higher than the pixel clock rate
 	 * (generally 148.5Mhz).
 	 */
-	error = clk_set_rate(hdmi->hsm_clock, HSM_CLOCK_FREQ);
+	error = clk_set_rate(sc->sc_hdmi.hsm_clock, HSM_CLOCK_FREQ);
 	if (error) {
 		DRM_ERROR("Failed to set HSM clock rate: %d\n", error);
 		goto err_put_i2c;
 	}
 
-	error = clk_enable(hdmi->hsm_clock);
+	error = clk_enable(sc->sc_hdmi.hsm_clock);
 	if (error) {
 		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
 			  error);
@@ -1492,32 +1475,25 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		HD_WRITE(VC4_HD_M_CTL, VC4_HD_M_ENABLE);
 	}
 
-	drm_encoder_init(sc->sc_drm_dev, hdmi->encoder, &vc4_hdmi_encoder_funcs,
+	drm_encoder_init(sc->sc_drm_dev, sc->sc_hdmi.encoder, &vc4_hdmi_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
-	drm_encoder_helper_add(hdmi->encoder, &vc4_hdmi_encoder_helper_funcs);
+	drm_encoder_helper_add(sc->sc_hdmi.encoder, &vc4_hdmi_encoder_helper_funcs);
 
-	hdmi->connector =
-		vc4_hdmi_connector_init(sc->sc_drm_dev, hdmi->encoder, hdmi->ddc);
-	if (IS_ERR(hdmi->connector)) {
-		error = PTR_ERR(hdmi->connector);
+	sc->sc_hdmi.connector =
+		vc4_hdmi_connector_init(sc->sc_drm_dev, sc->sc_hdmi.encoder, sc->sc_hdmi.ddc);
+	if (IS_ERR(sc->sc_hdmi.connector)) {
+		error = PTR_ERR(sc->sc_hdmi.connector);
 		goto err_destroy_encoder;
 	}
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
-	}
-
+	
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
 	return;
 
 
 err_destroy_encoder:
-	vc4_hdmi_encoder_destroy(hdmi->encoder);
-	clk_disable_unprepare(hdmi->hsm_clock);
+	vc4_hdmi_encoder_destroy(sc->sc_hdmi.encoder);
+	clk_disable_unprepare(sc->sc_hdmi.hsm_clock);
 err_put_i2c:
 	return;
 
