@@ -16,7 +16,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/fdt/fdtvar.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
-#include <linux/platform_device.h>
 #endif
 
 #include <linux/clk.h>

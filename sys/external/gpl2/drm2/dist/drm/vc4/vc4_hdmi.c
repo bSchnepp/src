@@ -40,8 +40,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/fdt/fdtvar.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
-
-#include <linux/platform_device.h>
 #include <linux/rational.h>
 #endif
 
@@ -1360,7 +1358,10 @@ struct vc4hdmi_softc {
 	device_t		sc_dev;
 	struct drm_device	*sc_drm_dev;
 	void			*sc_pdev;
-	int			sc_phandle;	
+	int			sc_phandle;
+	struct vc4_hdmi		sc_hdmi;
+	struct vc4_hdmi_encoder	sc_encoder;
+	void			*sc_ih;	
 };
 
 CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
