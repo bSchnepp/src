@@ -1368,7 +1368,7 @@ CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
 	vc4hdmi_match, vc4hdmi_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_driver;
+extern struct drm_device *vc4_drm_device;
 
 static int
 vc4hdmi_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -1399,7 +1399,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	}
 
 	sc->sc_phandle = faa->faa_phandle;
-	sc->sc_hdmi->pdev = NULL;
+	sc->sc_hdmi.pdev = NULL;
 	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_hdmi.hdmicore_bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
@@ -1464,6 +1464,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	}
 
 	vc4 = to_vc4_dev(sc->sc_drm_dev);
+	hdmi = &sc->sc_hdmi;
 	vc4->hdmi = hdmi;
 
 	/* HDMI core must be enabled. */
@@ -1485,7 +1486,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		error = PTR_ERR(sc->sc_hdmi.connector);
 		goto err_destroy_encoder;
 	}
-	
+
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
 	return;

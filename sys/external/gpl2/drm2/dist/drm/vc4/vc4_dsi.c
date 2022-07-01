@@ -1580,14 +1580,19 @@ struct vc4dsi_softc {
 	device_t		sc_dev;
 	struct drm_device	*sc_drm_dev;
 	void			*sc_pdev;
-	int			sc_phandle;	
+	int			sc_phandle;
+	struct vc4_dsi		sc_dsi;
+	struct vc4_dsi_encoder	sc_encoder;
+	void			*sc_ih;
+
+
 };
 
 CFATTACH_DECL_NEW(vcfourdsi, sizeof(struct vc4dsi_softc),
 	vc4dsi_match, vc4dsi_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_driver *const vc4_driver;
+extern struct drm_device *vc4_drm_device;
 
 static int
 vc4dsi_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -1604,8 +1609,6 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 
 	struct vc4_dsi * dsi = NULL;
 	struct vc4_dev * vc4 = NULL;
-	struct platform_device * pdev = NULL;
-	struct vc4_dsi_encoder * vc4_dsi_encoder = NULL;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -1613,16 +1616,8 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	int error;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
+	sc->sc_drm_dev = vc4_drm_device;
 	sc->sc_drm_dev->bst = faa->faa_bst;
-	sc->sc_drm_dev->dmat = faa->faa_dmat;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
@@ -1633,19 +1628,11 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	dsi = dev_get_drvdata(sc->sc_dev);
 	/* TODO: Set dsi->port based on the values from the dtb */
 
-	vc4_dsi_encoder = devm_kzalloc(sc->sc_dev, sizeof(*vc4_dsi_encoder),
-				       GFP_KERNEL);
-	if (vc4_dsi_encoder == NULL) {
-		aprint_error_dev(self, "unable to create dsi encoder: %d\n", ENOMEM);
-		return;
-	}
-
 	INIT_LIST_HEAD(&dsi->bridge_chain);
-	vc4_dsi_encoder->base.type = VC4_ENCODER_TYPE_DSI1;
-	vc4_dsi_encoder->dsi = dsi;
-	dsi->encoder = &vc4_dsi_encoder->base.base;
+	sc->sc_encoder.base.type = VC4_ENCODER_TYPE_DSI1;
+	sc->sc_encoder.dsi = dsi;
+	sc->sc_dsi.encoder = &sc->sc_encoder.base.base;
 
-	pdev = to_platform_device(sc->sc_dev);
 	error = bus_space_map(faa->faa_bst, addr, size, 0, &dsi->bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
@@ -1667,11 +1654,10 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	/* Clear any existing interrupt state. */
 	DSI_PORT_WRITE(INT_STAT, DSI_PORT_READ(INT_STAT));
 
-	error = devm_request_irq(sc->sc_dev, platform_get_irq(pdev, 0),
-			       vc4_dsi_irq_handler, 0, "vc4 dsi", dsi);
-	if (error) {
-		if (error != -EPROBE_DEFER)
-			dev_err(sc->sc_dev, "Failed to get interrupt: %d\n", error);
+	sc->sc_ih = fdtbus_intr_establish(phandle, 0, IPL_VM, IST_LEVEL,
+			       vc4_dsi_irq_handler, &sc->sc_dsi);
+	if (sc->sc_ih == NULL) {
+		aprint_error_dev(self, "unable to register irq: %d\n", error);
 		return;
 	}
 
@@ -1715,13 +1701,6 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 
 	if (dsi->port == 1)
 		vc4->dsi1 = dsi;
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;				
-	}
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
