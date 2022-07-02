@@ -838,11 +838,7 @@ static inline void vc4_debugfs_add_regset32(struct drm_device *drm,
 #endif
 
 /* vc4_drv.c */
-#ifdef __NetBSD__
-void vc4_ioremap_regs(struct platform_device *dev, int index, 
-						bus_space_tag_t *bst, 
-						bus_space_handle_t *bsh);
-#else
+#ifndef __NetBSD__
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
 #endif
 

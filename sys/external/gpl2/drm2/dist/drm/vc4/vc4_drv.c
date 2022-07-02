@@ -60,14 +60,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #define DRIVER_PATCHLEVEL 0
 
 /* Helper function for mapping the regs on a platform device. */
-#if __NetBSD__
-void vc4_ioremap_regs(struct platform_device *dev, int index, 
-						bus_space_tag_t *bst, 
-						bus_space_handle_t *bsh)
-{
-
-}
-#else
+#ifndef __NetBSD__
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index)
 {
 	struct resource *res;
@@ -310,19 +303,15 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	if (error < 0)
 		goto unbind_all;
 
-	error = drm_dev_register(sc->sc_drm_dev, 0);
-	if (error < 0)
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(sc->sc_drm_dev, 0);
+	if (error < 0) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
 		goto unbind_all;
+	}
 
 	drm_fbdev_generic_setup(sc->sc_drm_dev, 16);
 	return;
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
-	}
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
