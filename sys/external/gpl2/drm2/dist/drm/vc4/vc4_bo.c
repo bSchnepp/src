@@ -23,10 +23,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #include <linux/dma-buf.h>
 
-#ifdef __NetBSD__
-#include <drm/drm_vma_manager.h>
-#endif
-
 #include "vc4_drv.h"
 #include "uapi/drm/vc4_drm.h"
 

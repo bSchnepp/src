@@ -27,8 +27,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef __NetBSD__
 #include <dev/fdt/fdtvar.h>
-#include <drm/drm_device.h>
-#include <drm/drm_drv.h>
 #endif
 
 #include <linux/clk.h>
@@ -234,9 +232,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-#ifdef notyet
-	struct platform_device * pdev = NULL;
-#endif
 	struct vc4_dev * vc4;
 
 	const int phandle = faa->faa_phandle;
@@ -273,10 +268,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-#ifdef notyet
-	pdev = to_platform_device(sc->sc_dev);
-	platform_set_drvdata(pdev, sc->sc_drm_dev);
-#endif
 	vc4->dev = sc->sc_drm_dev;
 	sc->sc_drm_dev->dev_private = vc4;
 	INIT_LIST_HEAD(&vc4->debugfs_list);

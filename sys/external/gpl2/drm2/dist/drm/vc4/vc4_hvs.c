@@ -25,10 +25,7 @@
 __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef __NetBSD__
-#include <sys/stdint.h>
 #include <dev/fdt/fdtvar.h>
-#include <drm/drm_device.h>
-#include <drm/drm_drv.h>
 #endif
 
 #include <linux/component.h>
