@@ -997,11 +997,10 @@ u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist)
 #endif
 
 	/* Can't memcpy_toio() because it needs to be 32-bit writes. */
-#ifdef __NetBSD__
 	for (i = 0; i < vc4_state->dlist_count; i++)
+#ifdef __NetBSD__
 		bus_space_write_4(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, i, vc4_state->dlist[i]);
 #else
-	for (i = 0; i < vc4_state->dlist_count; i++)
 		writel(vc4_state->dlist[i], &dlist[i]);
 #endif
 
@@ -1123,7 +1122,17 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 	 * because that would smash the context data that the HVS is
 	 * currently using.
 	 */
-#ifdef notyet
+#ifdef __NetBSD__
+	bus_space_write_4(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, 
+			  vc4_state->pos0_offset, 
+			  vc4_state->dlist[vc4_state->pos0_offset]);
+	bus_space_write_4(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, 
+			  vc4_state->pos2_offset, 
+			  vc4_state->dlist[vc4_state->pos2_offset]);
+	bus_space_write_4(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, 
+			  vc4_state->ptr0_offset, 
+			  vc4_state->dlist[vc4_state->ptr0_offset]);
+#else
 	writel(vc4_state->dlist[vc4_state->pos0_offset],
 	       &vc4_state->hw_dlist[vc4_state->pos0_offset]);
 	writel(vc4_state->dlist[vc4_state->pos2_offset],
