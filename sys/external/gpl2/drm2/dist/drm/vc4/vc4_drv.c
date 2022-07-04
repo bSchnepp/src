@@ -235,8 +235,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	struct vc4_dev * vc4;
 
 	const int phandle = faa->faa_phandle;
-	bus_addr_t addr;
-	bus_size_t size;
 	int error;
 
 	sc->sc_dev = self;
@@ -248,15 +246,12 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	sc->sc_drm_dev->dev_private = &sc->sc_pdev;
 	vc4_drm_device = sc->sc_drm_dev;
 
+	sc->sc_phandle = phandle;
 	sc->sc_drm_dev->bst = faa->faa_bst;
 	sc->sc_drm_dev->dmat = faa->faa_dmat;
-	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
-		aprint_error(": couldn't get registers\n");
-		return;
-	}
-
 #ifdef notyet
 	sc->sc_dev->coherent_dma_mask = DMA_BIT_MASK(32);
 #endif

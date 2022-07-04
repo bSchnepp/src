@@ -1486,7 +1486,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	}
 
 	aprint_naive("\n");
-	aprint_normal(": GPU\n");
+	aprint_normal(": HDMI\n");
 	return;
 
 
@@ -1495,7 +1495,6 @@ err_destroy_encoder:
 	clk_disable_unprepare(sc->sc_hdmi.hsm_clock);
 err_put_i2c:
 	return;
-
 }
 #else
 static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
