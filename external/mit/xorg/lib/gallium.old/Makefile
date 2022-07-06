@@ -91,11 +91,16 @@ GALLIUM_SUBDIRS_NOUVEAU= \
 	drivers/nouveau/nvc0 \
 	winsys/nouveau/drm
 
+GALLIUM_SUBDIRS_VC4= \
+	drivers/vc4 \
+	winsys/drm/vc4
+
 BUILD_RADEON=0
 BUILD_NOUVEAU=0
 BUILD_VDPAU=0
 BUILD_LLVMPIPE=0
 BUILD_I915=0
+BUILD_VC4=0
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "x86_64"
 BUILD_I915=1
 .endif
@@ -105,6 +110,9 @@ BUILD_NOUVEAU=1
 BUILD_RADEON=1
 . endif
 BUILD_VDPAU=1
+.endif
+.if ${MACHINE} == "evbarm"
+BUILD_VC4=1
 .endif
 
 .if ${MACHINE_ARCH} == "i386" || \
@@ -137,6 +145,9 @@ GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_I915}
 .endif
 .if ${BUILD_LLVMPIPE} == 1
 GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_LLVMPIPE}
+.endif
+.if ${BUILD_VC4} == 1
+GALLIUM_SUBDIRS+=	${GALLIUM_SUBDIRS_VC4}
 .endif
 
 GALLIUM_SOURCES.auxiliary/cso_cache= \
@@ -214,6 +225,11 @@ CPPFLAGS.${_f} +=	-DHAVE_PIPE_LOADER_KMS=1 \
 			-I${X11SRCDIR.Mesa}/src/gallium/winsys \
 			-I${X11SRCDIR.Mesa}/src/loader \
 			-I${X11SRCDIR.Mesa}/../src/util
+.endfor
+
+.for _f in ${GALLIUM_SOURCES.drivers/vc4}
+CPPFLAGS.${_f} +=	-I${X11SRCDIR.Mesa}/dist/src/
+CPPFLAGS.${_f} +=	-I${X11SRCDIR.Mesa}/dist/src/broadcom/
 .endfor
 
 GALLIUM_SOURCES.auxiliary/pipebuffer= \
@@ -803,6 +819,55 @@ CPPFLAGS.${_f} +=	-I${X11SRCDIR.Mesa}/src/gallium/drivers/nouveau \
 			-I${DESTDIR}${X11INCDIR}/libdrm/nouveau
 .endfor
 
+GALLIUM_SOURCES.drivers/vc4 = \
+	vc4_blit.c \
+	vc4_bufmgr.c \
+	vc4_cl.c \
+	vc4_cl_dump.c \
+	vc4_context.c \
+	vc4_draw.c \
+	vc4_emit.c \
+	vc4_fence.c \
+	vc4_formats.c \
+	vc4_job.c \
+	vc4_nir_lower_blend.c \
+	vc4_nir_lower_io.c \
+	vc4_nir_lower_txf_ms.c \
+	vc4_opt_algebraic.c \
+	vc4_opt_coalesce_ff_writes.c \
+	vc4_opt_constant_folding.c \
+	vc4_opt_copy_propagation.c \
+	vc4_opt_dead_code.c \
+	vc4_opt_peephole_sf.c \
+	vc4_opt_small_immediates.c \
+	vc4_opt_vpm.c \
+	vc4_program.c \
+	vc4_qir.c \
+	vc4_qir_emit_uniform_stream_resets.c \
+	vc4_qir_live_variables.c \
+	vc4_qir_lower_uniforms.c \
+	vc4_qir_schedule.c \
+	vc4_qir_validate.c \
+	vc4_qpu.c \
+	vc4_qpu_disasm.c \
+	vc4_qpu_emit.c \
+	vc4_qpu_schedule.c \
+	vc4_qpu_validate.c \
+	vc4_query.c \
+	vc4_register_allocate.c \
+	vc4_reorder_uniforms.c \
+	vc4_resource.c \
+	vc4_screen.c \
+	vc4_simulator.c \
+	vc4_state.c \
+	vc4_tiling.c \
+	vc4_tiling_lt.c \
+	vc4_tiling_lt_neon.c \
+	vc4_uniforms.c 
+
+GALLIUM_SOURCES.winsys/vc4/drm = \
+	vc4_drm_winsys.c
+
 GALLIUM_SOURCES.winsys/radeon/drm = \
         radeon_drm_bo.c \
         radeon_drm_cs.c \
@@ -962,7 +1027,7 @@ LDFLAGS+=	-pthread
 LIBDPLIBS+=	X11-xcb         ${.CURDIR}/../libX11/libX11-xcb
 LIBDPLIBS+=	xcb-dri2        ${.CURDIR}/../libxcb/dri2
 LIBDPLIBS+=	xcb		${.CURDIR}/../libxcb/libxcb
-.if ${BUILD_RADEON} == 1 || ${BUILD_NOUVEAU} == 1
+.if ${BUILD_RADEON} == 1 || ${BUILD_NOUVEAU} == 1 || ${BUILD_VC4} == 1
 LIBDPLIBS+= 	drm		${.CURDIR}/../libdrm
 .if ${BUILD_I915} == 1
 LIBDPLIBS+= 	drm_intel	${.CURDIR}/../libdrm_intel
@@ -1174,6 +1239,11 @@ CPPFLAGS.target.c += \
 CPPFLAGS.target.c += \
 	-DGALLIUM_NOUVEAU
 .endif	# ${BUILD_NOUVEAU} == 1
+
+.if ${BUILD_VC4} == 1
+CPPFLAGS.target.c += \
+	-DGALLIUM_VC4
+.endif	# ${BUILD_VC4} == 1
 
 CWARNFLAGS.clang+=	-Wno-error=constant-conversion \
 			-Wno-error=tautological-constant-out-of-range-compare \
