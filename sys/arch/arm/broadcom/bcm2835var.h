@@ -48,6 +48,8 @@ void bcm2836_cpu_hatch(struct cpu_info *);
 
 u_int bcm283x_clk_get_rate_uart(void);
 u_int bcm283x_clk_get_rate_vpu(void);
+u_int bcm283x_clk_get_rate_vec(void);
+u_int bcm283x_clk_get_rate_v3d(void);
 u_int bcm283x_clk_get_rate_emmc(void);
 u_int bcm283x_clk_get_rate_emmc2(void);
 

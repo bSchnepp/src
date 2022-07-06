@@ -132,6 +132,10 @@ cprman_get_rate(void *priv, struct clk *baseclk)
 		return bcm283x_clk_get_rate_uart();
 	case CPRMAN_CLOCK_VPU:
 		return bcm283x_clk_get_rate_vpu();
+	case CPRMAN_CLOCK_VEC:
+		return bcm283x_clk_get_rate_vec();
+	case CPRMAN_CLOCK_V3D:
+		return bcm283x_clk_get_rate_v3d();
 	case CPRMAN_CLOCK_EMMC:
 		return bcm283x_clk_get_rate_emmc();
 	case CPRMAN_CLOCK_EMMC2:
@@ -183,6 +187,8 @@ cprman_attach(device_t parent, device_t self, void *aux)
 
 	cprman_add_clock(sc, CPRMAN_CLOCK_UART, "uart");
 	cprman_add_clock(sc, CPRMAN_CLOCK_VPU, "vpu");
+	cprman_add_clock(sc, CPRMAN_CLOCK_VEC, "vec");
+	cprman_add_clock(sc, CPRMAN_CLOCK_V3D, "v3d");
 	cprman_add_clock(sc, CPRMAN_CLOCK_EMMC, "emmc");
 	cprman_add_clock(sc, CPRMAN_CLOCK_EMMC2, "emmc2");
 

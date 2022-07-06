@@ -388,6 +388,8 @@ static struct {
 	struct vcprop_tag_clockrate	vbt_emmcclockrate;
 	struct vcprop_tag_clockrate	vbt_armclockrate;
 	struct vcprop_tag_clockrate	vbt_vpuclockrate;
+	struct vcprop_tag_clockrate	vbt_v3dclockrate;
+	struct vcprop_tag_clockrate	vbt_vecclockrate;
 	struct vcprop_tag_clockrate	vbt_emmc2clockrate;
 	struct vcprop_tag end;
 } vb __cacheline_aligned = {
@@ -621,6 +623,26 @@ bcm283x_clk_get_rate_vpu(void)
 	if (vcprop_tag_success_p(&vb.vbt_vpuclockrate.tag) &&
 	    vb.vbt_vpuclockrate.rate != 0) {
 		return le32toh(vb.vbt_vpuclockrate.rate);
+	}
+	return 0;
+}
+
+u_int
+bcm283x_clk_get_rate_v3d(void)
+{
+	if (vcprop_tag_success_p(&vb.vbt_v3dclockrate.tag) &&
+	    vb.vbt_v3dclockrate.rate != 0) {
+		return le32toh(vb.vbt_v3dclockrate.rate);
+	}
+	return 0;
+}
+
+u_int
+bcm283x_clk_get_rate_vec(void)
+{
+	if (vcprop_tag_success_p(&vb.vbt_vecclockrate.tag) &&
+	    vb.vbt_vecclockrate.rate != 0) {
+		return le32toh(vb.vbt_vecclockrate.rate);
 	}
 	return 0;
 }
