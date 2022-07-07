@@ -390,6 +390,7 @@ static struct {
 	struct vcprop_tag_clockrate	vbt_vpuclockrate;
 	struct vcprop_tag_clockrate	vbt_v3dclockrate;
 	struct vcprop_tag_clockrate	vbt_hsmclockrate;
+	struct vcprop_tag_clockrate	vbt_pixelclockrate;
 	struct vcprop_tag_clockrate	vbt_vecclockrate;
 	struct vcprop_tag_clockrate	vbt_emmc2clockrate;
 	struct vcprop_tag end;
@@ -485,6 +486,14 @@ static struct {
 			.vpt_rcode = htole32(VCPROPTAG_REQUEST)
 		},
 		.id = htole32(VCPROP_CLK_V3D)
+	},
+	.vbt_pixelclockrate = {
+		.tag = {
+			.vpt_tag = htole32(VCPROPTAG_GET_CLOCKRATE),
+			.vpt_len = htole32(VCPROPTAG_LEN(vb.vbt_pixelclockrate)),
+			.vpt_rcode = htole32(VCPROPTAG_REQUEST)
+		},
+		.id = htole32(VCPROP_CLK_PIXEL)
 	},
 	.vbt_emmc2clockrate = {
 		.tag = {
@@ -653,6 +662,16 @@ bcm283x_clk_get_rate_v3d(void)
 	if (vcprop_tag_success_p(&vb.vbt_v3dclockrate.tag) &&
 	    vb.vbt_v3dclockrate.rate != 0) {
 		return le32toh(vb.vbt_v3dclockrate.rate);
+	}
+	return 0;
+}
+
+u_int
+bcm283x_clk_get_rate_pixel(void)
+{
+	if (vcprop_tag_success_p(&vb.vbt_pixelclockrate.tag) &&
+	    vb.vbt_pixelclockrate.rate != 0) {
+		return le32toh(vb.vbt_pixelclockrate.rate);
 	}
 	return 0;
 }

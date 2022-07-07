@@ -187,6 +187,7 @@ cprman_attach(device_t parent, device_t self, void *aux)
 
 	cprman_add_clock(sc, CPRMAN_CLOCK_UART, "uart");
 	cprman_add_clock(sc, CPRMAN_CLOCK_VPU, "vpu");
+	cprman_add_clock(sc, CPRMAN_CLOCK_HSM, "hsm");
 	cprman_add_clock(sc, CPRMAN_CLOCK_VEC, "vec");
 	cprman_add_clock(sc, CPRMAN_CLOCK_V3D, "v3d");
 	cprman_add_clock(sc, CPRMAN_CLOCK_EMMC, "emmc");
