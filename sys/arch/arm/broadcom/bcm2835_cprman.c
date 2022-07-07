@@ -40,6 +40,7 @@ __KERNEL_RCSID(0, "$NetBSD: bcm2835_cprman.c,v 1.5 2021/01/27 03:10:19 thorpej E
 #include <dev/fdt/fdtvar.h>
 
 #include <arm/broadcom/bcm2835var.h>
+#include <evbarm/rpi/vcprop.h>
 
 enum {
 	CPRMAN_CLOCK_TIMER = 17,
@@ -71,6 +72,7 @@ struct cprman_softc {
 
 	struct clk_domain sc_clkdom;
 	struct cprman_clk sc_clk[CPRMAN_NCLOCK];
+	struct cprman_clk sc_firm_clk[VCPROP_NCLK];
 };
 
 
@@ -113,6 +115,13 @@ cprman_get(void *priv, const char *name)
 			return &sc->sc_clk[n].base;
 	}
 
+	for (n = 0; n < __arraycount(sc->sc_firm_clk); n++) {
+		if (sc->sc_firm_clk[n].base.name == NULL)
+			continue;
+		if (strcmp(sc->sc_firm_clk[n].base.name, name) == 0)
+			return &sc->sc_firm_clk[n].base;
+	}
+
 	return NULL;
 }
 
@@ -134,6 +143,8 @@ cprman_get_rate(void *priv, struct clk *baseclk)
 		return bcm283x_clk_get_rate_vpu();
 	case CPRMAN_CLOCK_VEC:
 		return bcm283x_clk_get_rate_vec();
+	case CPRMAN_CLOCK_HSM:
+		return bcm283x_clk_get_rate_hsm();
 	case CPRMAN_CLOCK_V3D:
 		return bcm283x_clk_get_rate_v3d();
 	case CPRMAN_CLOCK_EMMC:
@@ -157,6 +168,14 @@ cprman_add_clock(struct cprman_softc *sc, u_int id, const char *name)
 	sc->sc_clk[id].base.domain = &sc->sc_clkdom;
 	sc->sc_clk[id].base.name = name;
 	sc->sc_clk[id].id = id;
+}
+
+static void
+cprman_add_firm_clock(struct cprman_softc *sc, u_int id, const char *name)
+{
+	sc->sc_firm_clk[id].base.domain = &sc->sc_clkdom;
+	sc->sc_firm_clk[id].base.name = name;
+	sc->sc_firm_clk[id].id = id;
 }
 
 static const struct device_compatible_entry compat_data[] = {
@@ -192,6 +211,8 @@ cprman_attach(device_t parent, device_t self, void *aux)
 	cprman_add_clock(sc, CPRMAN_CLOCK_V3D, "v3d");
 	cprman_add_clock(sc, CPRMAN_CLOCK_EMMC, "emmc");
 	cprman_add_clock(sc, CPRMAN_CLOCK_EMMC2, "emmc2");
+
+	cprman_add_firm_clock(sc, VCPROP_CLK_PIXEL, "pixel");
 
 	aprint_naive("\n");
 	aprint_normal(": BCM283x Clock Controller\n");

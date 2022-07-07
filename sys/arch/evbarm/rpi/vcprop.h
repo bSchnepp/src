@@ -267,17 +267,23 @@ struct vcprop_tag_boardserial {
 	uint64_t sn;
 } __packed;
 
-#define	VCPROP_CLK_EMMC		1
-#define	VCPROP_CLK_UART		2
-#define	VCPROP_CLK_ARM		3
-#define	VCPROP_CLK_CORE		4
-#define	VCPROP_CLK_V3D		5
-#define	VCPROP_CLK_H264		6
-#define	VCPROP_CLK_ISP		7
-#define	VCPROP_CLK_SDRAM	8
-#define	VCPROP_CLK_PIXEL	9
-#define	VCPROP_CLK_PWM		10
-#define	VCPROP_CLK_EMMC2	12
+
+enum vcprop_clock_id {
+	VCPROP_CLK_EMMC		= 1,
+	VCPROP_CLK_UART		= 2,
+	VCPROP_CLK_ARM		= 3,
+	VCPROP_CLK_CORE		= 4,
+	VCPROP_CLK_V3D		= 5,
+	VCPROP_CLK_H264		= 6,
+	VCPROP_CLK_ISP	 	= 7,
+	VCPROP_CLK_SDRAM	= 8,
+	VCPROP_CLK_PIXEL	= 9,
+	VCPROP_CLK_PWM		= 10,
+	VCPROP_CLK_HEVC		= 11,
+	VCPROP_CLK_EMMC2	= 12,
+	VCPROP_NCLK
+};
+
 
 struct vcprop_clock {
 	uint32_t pclk;
