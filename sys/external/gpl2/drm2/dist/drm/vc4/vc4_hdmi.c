@@ -1432,10 +1432,12 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	 * (generally 148.5Mhz).
 	 */
 	error = clk_set_rate(sc->sc_hdmi.hsm_clock, HSM_CLOCK_FREQ);
+#ifdef notyet
 	if (error) {
 		DRM_ERROR("Failed to set HSM clock rate: %d\n", error);
 		goto err_put_i2c;
 	}
+#endif
 
 	error = clk_enable(sc->sc_hdmi.hsm_clock);
 	if (error) {
@@ -1443,27 +1445,12 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 			  error);
 		goto err_put_i2c;
 	}
-
-	/* This is the rate that is set by the firmware.  The number
-	 * needs to be a bit higher than the pixel clock rate
-	 * (generally 148.5Mhz).
-	 */
-	error = clk_set_rate(sc->sc_hdmi.hsm_clock, HSM_CLOCK_FREQ);
-	if (error) {
-		DRM_ERROR("Failed to set HSM clock rate: %d\n", error);
-		goto err_put_i2c;
-	}
-
-	error = clk_enable(sc->sc_hdmi.hsm_clock);
-	if (error) {
-		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
-			  error);
-		goto err_put_i2c;
-	}
-
+	
 	vc4 = to_vc4_dev(sc->sc_drm_dev);
 	hdmi = &sc->sc_hdmi;
 	vc4->hdmi = hdmi;
+
+	return;
 
 	/* HDMI core must be enabled. */
 	if (!(HD_READ(VC4_HD_M_CTL) & VC4_HD_M_ENABLE)) {
