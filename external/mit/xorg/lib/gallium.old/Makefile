@@ -227,9 +227,10 @@ CPPFLAGS.${_f} +=	-DHAVE_PIPE_LOADER_KMS=1 \
 			-I${X11SRCDIR.Mesa}/../src/util
 .endfor
 
-.for _f in ${GALLIUM_SOURCES.drivers/vc4}
-CPPFLAGS.${_f} +=	-I${X11SRCDIR.Mesa}/dist/src/
-CPPFLAGS.${_f} +=	-I${X11SRCDIR.Mesa}/dist/src/broadcom/
+.for _f in ${GALLIUM_SOURCES.drivers/vcfour}
+CPPFLAGS.${_f} +=	-I${X11SRCDIR.Mesa}/../src/broadcom/ \
+			-I${X11SRCDIR.Mesa}/src/broadcom/ \
+			-I${X11SRCDIR.Mesa}/src/
 .endfor
 
 GALLIUM_SOURCES.auxiliary/pipebuffer= \
@@ -819,7 +820,7 @@ CPPFLAGS.${_f} +=	-I${X11SRCDIR.Mesa}/src/gallium/drivers/nouveau \
 			-I${DESTDIR}${X11INCDIR}/libdrm/nouveau
 .endfor
 
-GALLIUM_SOURCES.drivers/vc4 = \
+GALLIUM_SOURCES.drivers/vcfour = \
 	vc4_blit.c \
 	vc4_bufmgr.c \
 	vc4_cl.c \
