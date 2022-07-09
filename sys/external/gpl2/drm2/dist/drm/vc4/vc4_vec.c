@@ -543,7 +543,7 @@ static int vc4vec_match(device_t, cfdata_t, void *);
 static void vc4vec_attach(device_t, device_t, void *);
 
 static const struct device_compatible_entry compat_data[] = {
-	{ .compat = "brcm,bcm2835-dpi",
+	{ .compat = "brcm,bcm2835-vec",
 	  .data = NULL },
 	DEVICE_COMPAT_EOL
 };
@@ -583,6 +583,8 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4vec_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
+	struct vc4_dev * vc4 = NULL;
+	struct vc4_vec *vec;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -609,6 +611,10 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	sc->sc_vec_encoder.base.type = VC4_ENCODER_TYPE_VEC;
 	sc->sc_vec_encoder.vec = &sc->sc_vec;
 	sc->sc_vec.encoder = &sc->sc_vec_encoder.base.base;
+
+	vc4 = to_vc4_dev(sc->sc_drm_dev);
+	vec = &sc->sc_vec;
+
 	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_vec.bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
@@ -624,7 +630,6 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		}
 		return;
 	}
-
 #ifdef notyet
 	pm_runtime_enable(sc->sc_dev);
 #endif
@@ -633,24 +638,25 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 			 DRM_MODE_ENCODER_TVDAC, NULL);
 	drm_encoder_helper_add(sc->sc_vec.encoder, &vc4_vec_encoder_helper_funcs);
 	sc->sc_vec.connector = vc4_vec_connector_init(sc->sc_drm_dev, &sc->sc_vec);
+	if (IS_ERR(sc->sc_vec.connector)) {
+		aprint_error(": couldn't setup connector");
+		drm_encoder_cleanup(sc->sc_vec.encoder);
+		return;
+	}
 
 #ifdef notyet
 	dev_set_drvdata(sc->sc_dev, vec);
 #endif
-	to_vc4_dev(vc4_drm_device)->vec = &sc->sc_vec;
+
+	vc4->vec = vec;
 
 	aprint_naive("\n");
-	aprint_normal(": GPU\n");
+	aprint_normal(": VEC\n");
 	return;
 
 #ifdef notyet
 	pm_runtime_disable(dev);
 #endif
-
-	if (error) {
-		aprint_error_dev(self, "unable to register encoder/decoder: %d\n", error);
-		return;
-	}
 }
 #else
 static const struct of_device_id vc4_vec_dt_match[] = {
