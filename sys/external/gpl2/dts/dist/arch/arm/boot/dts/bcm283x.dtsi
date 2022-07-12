@@ -432,7 +432,6 @@
 			compatible = "brcm,bcm2835-hvs";
 			reg = <0x7e400000 0x6000>;
 			interrupts = <2 1>;
-			status = "disabled";
 		};
 
 		dsi1: dsi@7e700000 {
