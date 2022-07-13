@@ -273,8 +273,7 @@ static int vc4hvs_match(device_t, cfdata_t, void *);
 static void vc4hvs_attach(device_t, device_t, void *);
 
 static const struct device_compatible_entry compat_data[] = {
-	{ .compat = "brcm,bcm2835-hvs",
-	  .data = NULL },
+	{ .compat = "brcm,bcm2835-hvs" },
 	DEVICE_COMPAT_EOL
 };
 

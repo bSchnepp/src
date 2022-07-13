@@ -585,6 +585,7 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	struct fdt_attach_args * const faa = aux;
 	struct vc4_dev * vc4 = NULL;
 	struct vc4_vec *vec;
+	struct vc4_vec_encoder *vec_encoder;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -608,12 +609,13 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	sc->sc_vec_encoder.base.type = VC4_ENCODER_TYPE_VEC;
-	sc->sc_vec_encoder.vec = &sc->sc_vec;
-	sc->sc_vec.encoder = &sc->sc_vec_encoder.base.base;
-
 	vc4 = to_vc4_dev(sc->sc_drm_dev);
 	vec = &sc->sc_vec;
+	vec_encoder = &sc->sc_vec_encoder;
+
+	vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
+	vec_encoder->vec = &sc->sc_vec;
+	vec->encoder = &sc->sc_vec_encoder.base.base;
 
 	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_vec.bsh);
 	if (error) {
@@ -622,9 +624,9 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	sc->sc_vec.clock = fdtbus_clock_get(phandle, NULL);
-	if (sc->sc_vec.clock == NULL) {
-		error = PTR_ERR(sc->sc_vec.clock);
+	vec->clock = fdtbus_clock_get(phandle, NULL);
+	if (vec->clock == NULL) {
+		error = PTR_ERR(vec->clock);
 		if (error != -EPROBE_DEFER) {
 			aprint_error(": couldn't get clock");
 		}
@@ -634,20 +636,19 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	pm_runtime_enable(sc->sc_dev);
 #endif
 
-	drm_encoder_init(sc->sc_drm_dev, sc->sc_vec.encoder, &vc4_vec_encoder_funcs,
+	drm_encoder_init(sc->sc_drm_dev, vec->encoder, &vc4_vec_encoder_funcs,
 			 DRM_MODE_ENCODER_TVDAC, NULL);
-	drm_encoder_helper_add(sc->sc_vec.encoder, &vc4_vec_encoder_helper_funcs);
-	sc->sc_vec.connector = vc4_vec_connector_init(sc->sc_drm_dev, &sc->sc_vec);
-	if (IS_ERR(sc->sc_vec.connector)) {
+	drm_encoder_helper_add(vec->encoder, &vc4_vec_encoder_helper_funcs);
+	vec->connector = vc4_vec_connector_init(sc->sc_drm_dev, &sc->sc_vec);
+	if (IS_ERR(vec->connector)) {
 		aprint_error(": couldn't setup connector");
-		drm_encoder_cleanup(sc->sc_vec.encoder);
+		drm_encoder_cleanup(vec->encoder);
 		return;
 	}
 
 #ifdef notyet
 	dev_set_drvdata(sc->sc_dev, vec);
 #endif
-
 	vc4->vec = vec;
 
 	aprint_naive("\n");
