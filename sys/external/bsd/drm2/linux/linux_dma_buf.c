@@ -48,6 +48,7 @@ static int	dmabuf_fop_close(struct file *);
 static int	dmabuf_fop_kqfilter(struct file *, struct knote *);
 static int	dmabuf_fop_mmap(struct file *, off_t *, size_t, int, int *,
 		    int *, struct uvm_object **, int *);
+static int	dmabuf_fop_seek(struct file *, off_t, int, off_t *, int);
 
 static const struct fileops dmabuf_fileops = {
 	.fo_name = "dmabuf",
@@ -61,6 +62,7 @@ static const struct fileops dmabuf_fileops = {
 	.fo_kqfilter = dmabuf_fop_kqfilter,
 	.fo_restart = fnullop_restart,
 	.fo_mmap = dmabuf_fop_mmap,
+	.fo_seek = dmabuf_fop_seek,
 };
 
 struct dma_buf *
@@ -302,4 +304,37 @@ dmabuf_fop_mmap(struct file *file, off_t *offp, size_t size, int prot,
 
 	return dmabuf->ops->mmap(dmabuf, offp, size, prot, flagsp, advicep,
 	    uobjp, maxprotp);
+}
+
+static int
+dmabuf_fop_seek(struct file *file, off_t delta, int whence, off_t *newoffp,
+    int flags)
+{
+	struct dma_buf *dmabuf = file->f_data;
+	off_t oldoff, newoff;
+	int error;
+
+	oldoff = file->f_offset;
+	switch (whence) {
+	case SEEK_CUR:
+		newoff = oldoff + delta;
+		break;
+	case SEEK_END:
+		newoff = dmabuf->size;
+		break;
+	case SEEK_SET:
+		newoff = delta;
+		break;
+	default:
+		error = EINVAL;
+		goto out;
+	}
+
+	if (newoffp)
+		*newoffp = newoff;
+	if (flags & FOF_UPDATE_OFFSET)
+		file->f_offset = newoff;
+	error = 0;
+out:
+	return error;
 }
