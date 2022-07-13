@@ -211,7 +211,11 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 }
 
 irqreturn_t
+#ifdef __NetBSD__
+vc4_irq(void *arg)
+#else
 vc4_irq(int irq, void *arg)
+#endif
 {
 	struct drm_device *dev = arg;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);

@@ -882,7 +882,11 @@ extern struct platform_driver vc4_vec_driver;
 extern struct platform_driver vc4_txp_driver;
 
 /* vc4_irq.c */
+#ifdef __NetBSD__
+irqreturn_t vc4_irq(void *arg);
+#else
 irqreturn_t vc4_irq(int irq, void *arg);
+#endif
 void vc4_irq_preinstall(struct drm_device *dev);
 int vc4_irq_postinstall(struct drm_device *dev);
 void vc4_irq_uninstall(struct drm_device *dev);

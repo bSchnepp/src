@@ -232,9 +232,8 @@ vc4_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	struct vc4_dev * vc4;
-
 	const int phandle = faa->faa_phandle;
+	struct vc4_dev * vc4;
 	int error;
 
 	sc->sc_dev = self;
@@ -324,9 +323,7 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_SYNCOBJ),
 	.open = vc4_open,
 	.postclose = vc4_close,
-#ifdef notyet
 	.irq_handler = vc4_irq,
-#endif
 	.irq_preinstall = vc4_irq_preinstall,
 	.irq_postinstall = vc4_irq_postinstall,
 	.irq_uninstall = vc4_irq_uninstall,
@@ -361,6 +358,8 @@ static struct drm_driver vc4_drm_driver = {
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
 #ifdef __NetBSD__
 	.fops = NULL,
+	.mmap_object	    = NULL,
+	.gem_uvm_ops	    = &drm_gem_cma_uvm_ops,
 #else
 	.fops = &vc4_drm_fops,
 #endif
