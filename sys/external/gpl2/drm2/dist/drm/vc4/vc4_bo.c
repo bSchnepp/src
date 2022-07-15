@@ -729,14 +729,9 @@ vm_fault_t vc4_fault(struct vm_fault *vmf)
 #endif
 }
 
-#ifdef __NetBSD__
-int vc4_mmap(struct file *filp, off_t *offp, size_t len, int prot, int *flagsp, 
-    int *advicep, struct uvm_object **uobjp, int *maxprotp)
-#else
-int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
-#endif
-{
 #ifndef __NetBSD__
+int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
+{
 	struct drm_gem_object *gem_obj;
 	unsigned long vm_pgoff;
 	struct vc4_bo *bo;
@@ -787,9 +782,8 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (ret)
 		drm_gem_vm_close(vma);
 	return ret;
-#endif
-	return 0;
 }
+#endif
 
 #ifdef __NetBSD__
 int vc4_prime_mmap(struct drm_gem_object *obj, off_t *offp, size_t len, 

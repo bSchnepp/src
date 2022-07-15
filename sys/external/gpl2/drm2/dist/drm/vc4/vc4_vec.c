@@ -601,7 +601,6 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	}
 
 	sc->sc_phandle = faa->faa_phandle;
-
 	error = -drm_mode_create_tv_properties(sc->sc_drm_dev, ARRAY_SIZE(tv_mode_names),
 					    tv_mode_names);
 	if (error) {

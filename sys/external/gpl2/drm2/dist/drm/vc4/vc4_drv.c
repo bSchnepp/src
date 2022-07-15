@@ -296,8 +296,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	}
 
 	drm_fbdev_generic_setup(sc->sc_drm_dev, 16);
-	return;
-
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
 	return;
@@ -358,7 +356,7 @@ static struct drm_driver vc4_drm_driver = {
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
 #ifdef __NetBSD__
 	.fops = NULL,
-	.mmap_object	    = NULL,
+	.mmap_object	    = drm_gem_mmap_object,
 	.gem_uvm_ops	    = &drm_gem_cma_uvm_ops,
 #else
 	.fops = &vc4_drm_fops,
