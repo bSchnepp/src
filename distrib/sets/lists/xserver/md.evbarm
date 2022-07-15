@@ -20,6 +20,8 @@
 ./usr/X11R7/lib/modules/dri/radeon_dri.so.0		xserver-xf86-video-radeon-drivers	xorg
 ./usr/X11R7/lib/modules/dri/radeonsi_dri.so		xserver-xf86-video-radeon-drivers	xorg,llvmrt
 ./usr/X11R7/lib/modules/dri/radeonsi_dri.so.0		xserver-xf86-video-radeon-drivers	xorg,llvmrt
+./usr/X11R7/lib/modules/dri/vc4_dri.so			xserver-gallium-drivers	xorg
+./usr/X11R7/lib/modules/dri/vc4_dri.so.0		xserver-gallium-drivers	xorg
 ./usr/X11R7/lib/modules/drivers/ati_drv.so		xserver-xf86-video-ati-drivers	xorg
 ./usr/X11R7/lib/modules/drivers/ati_drv.so.6		xserver-obsolete	obsolete
 ./usr/X11R7/lib/modules/drivers/ati_drv.so.19		xserver-xf86-video-ati-drivers	xorg
