@@ -1414,13 +1414,13 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_hdmi.pixel_clock = fdtbus_clock_get(sc->sc_phandle, "pixel");
 	if (IS_ERR(sc->sc_hdmi.pixel_clock)) {
-		aprint_error_dev(self, "could not get pixel clock: %d\n", 
+		aprint_error_dev(self, "couldn't get pixel clock: %d\n", 
 			EINVAL);
 		return;	
 	}
 	sc->sc_hdmi.hsm_clock = fdtbus_clock_get(sc->sc_phandle, "hdmi");
 	if (IS_ERR(sc->sc_hdmi.hsm_clock)) {
-		aprint_error_dev(self, "could not get hdmi hsm clock: %d\n", 
+		aprint_error_dev(self, "couldn't get hdmi hsm clock: %d\n", 
 			EINVAL);
 		return;	
 	}
@@ -1450,7 +1450,11 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	hdmi = &sc->sc_hdmi;
 	vc4->hdmi = hdmi;
 
-	return;
+	/** XXX FIXME: Mapping isn't quite right yet. 
+	 * Until this is corrected, skip over all the MMIO and connection
+	 * code. 
+	 */
+	goto end;
 
 	/* HDMI core must be enabled. */
 	if (!(HD_READ(VC4_HD_M_CTL) & VC4_HD_M_ENABLE)) {
@@ -1472,6 +1476,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		goto err_destroy_encoder;
 	}
 
+end:
 	aprint_naive("\n");
 	aprint_normal(": HDMI\n");
 	return;
