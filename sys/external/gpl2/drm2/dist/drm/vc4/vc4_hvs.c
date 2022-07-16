@@ -306,7 +306,7 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	struct vcfourhvs_softc * const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
 
-	struct vc4_hvs * hvs = NULL;
+	struct vc4_hvs * hvs = &sc->sc_hvs;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -356,6 +356,8 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	error = vc4_hvs_upload_linear_kernel(hvs,
 					   &hvs->mitchell_netravali_filter,
 					   mitchell_netravali_1_3_1_3_kernel);
+
+	vc4->hvs = hvs;
 
 	dispcfg = HVS_READ(SCALER_DISPCTRL);
 

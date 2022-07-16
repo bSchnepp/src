@@ -482,6 +482,7 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	vc4->txp = &sc->sc_txp;
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
 }

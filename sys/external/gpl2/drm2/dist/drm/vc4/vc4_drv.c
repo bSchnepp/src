@@ -295,7 +295,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	drm_fbdev_generic_setup(sc->sc_drm_dev, 16);
 	aprint_naive("\n");
-	aprint_normal(": GPU\n");
+	aprint_normal(": VC4 Core\n");
 	return;
 
 unbind_all:

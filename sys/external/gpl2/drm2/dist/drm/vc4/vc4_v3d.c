@@ -485,7 +485,8 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	sc->sc_v3d.vc4->v3d = &sc->sc_v3d;
+
+	vc4->v3d = &sc->sc_v3d;
 	sc->sc_v3d.vc4 = vc4;
 
 	/* May be okay without a clock. Reference Linux driver. */
