@@ -312,7 +312,7 @@ CFATTACH_DECL_NEW(vcfourdpi, sizeof(struct vc4dpi_softc),
 	vc4dpi_match, vc4dpi_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_device *vc4_drm_device;
+extern struct vc4_dev *vc4;
 
 static int
 vc4dpi_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -331,12 +331,11 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 	bus_addr_t addr;
 	bus_size_t size;
 
-	struct vc4_dev * vc4 = NULL;
 	struct vc4_dpi * dpi = NULL;
 	int error;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = vc4_drm_device;
+	sc->sc_drm_dev = vc4->dev;
 	sc->sc_drm_dev->bst = faa->faa_bst;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");

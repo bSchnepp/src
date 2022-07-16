@@ -1366,7 +1366,7 @@ CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
 	vc4hdmi_match, vc4hdmi_attach, NULL, NULL);
 
 /* XXX Kludge to get these from vc4_drv.c.  */
-extern struct drm_device *vc4_drm_device;
+extern struct vc4_dev *vc4;
 
 static int
 vc4hdmi_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -1380,7 +1380,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4hdmi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	struct vc4_dev * vc4 = NULL;
 	struct vc4_hdmi *hdmi;
 
 	const int phandle = faa->faa_phandle;
@@ -1389,7 +1388,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	int error;
 
 	sc->sc_dev = self;
-	sc->sc_drm_dev = vc4_drm_device;
+	sc->sc_drm_dev = vc4->dev;
 	sc->sc_drm_dev->bst = faa->faa_bst;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
@@ -1446,7 +1445,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		goto err_put_i2c;
 	}
 	
-	vc4 = to_vc4_dev(sc->sc_drm_dev);
 	hdmi = &sc->sc_hdmi;
 	vc4->hdmi = hdmi;
 

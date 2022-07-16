@@ -218,7 +218,7 @@ CFATTACH_DECL_NEW(vcfour, sizeof(struct vc4_softc),
 
 /* XXX Kludge to get these from vc4_drv.c.  */
 extern struct drm_driver *const vc4_driver;
-struct drm_device *vc4_drm_device;
+struct vc4_dev *vc4;
 
 static int
 vc4_match(device_t parent, cfdata_t cfdata, void *aux)
@@ -245,8 +245,14 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	vc4 = devm_kzalloc(sc->sc_dev, sizeof(*vc4), GFP_KERNEL);
+	if (!vc4) {
+		aprint_error_dev(self, "unable to allocate vc4: %d\n", 
+			ENOMEM);
+		return;
+	}
+
 	sc->sc_drm_dev->dev_private = &sc->sc_pdev;
-	vc4_drm_device = sc->sc_drm_dev;
 
 	sc->sc_phandle = phandle;
 	sc->sc_drm_dev->bst = faa->faa_bst;
@@ -254,13 +260,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 #ifdef notyet
 	sc->sc_dev->coherent_dma_mask = DMA_BIT_MASK(32);
 #endif
-
-	vc4 = devm_kzalloc(sc->sc_dev, sizeof(*vc4), GFP_KERNEL);
-	if (!vc4) {
-		aprint_error_dev(self, "unable to allocate vc4: %d\n", 
-			ENOMEM);
-		return;
-	}
 
 	vc4->dev = sc->sc_drm_dev;
 	sc->sc_drm_dev->dev_private = vc4;
