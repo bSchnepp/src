@@ -233,7 +233,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	struct vc4_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
 	const int phandle = faa->faa_phandle;
-	struct vc4_dev * vc4;
 	int error;
 
 	sc->sc_dev = self;
