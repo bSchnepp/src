@@ -178,10 +178,10 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 	for (i = 0; i < VC4_KERNEL_DWORDS; i++) {
 		if (i < VC4_LINEAR_PHASE_KERNEL_DWORDS)
 			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, 
-				space->start + i, kernel[i]);
+				space->start + (i * sizeof(u32)), kernel[i]);
 		else {
 			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, 
-				space->start + i, 
+				space->start + (i * sizeof(u32)), 
 				kernel[VC4_KERNEL_DWORDS - i - 1]);
 		}
 	}
@@ -307,6 +307,7 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	struct fdt_attach_args * const faa = aux;
 
 	struct vc4_hvs * hvs = &sc->sc_hvs;
+	vc4->hvs = hvs;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -333,10 +334,10 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	}
 
 	/* 31 registers, based on the size of the array hvs_regs. */
-	hvs->dlist_bst = hvs->bst;
+	hvs->bst = sc->sc_drm_dev->bst;
 	error = bus_space_subregion(hvs->bst, hvs->bsh, SCALER_DLIST_START, 
 		31 * sizeof(uint32_t), &hvs->dlist_bsh);
-	if (IS_ERR(hvs->bst)) {
+	if (error) {
 		aprint_error_dev(self, "unable to map regs region: %d\n", 
 			EINVAL);
 		return;		
@@ -356,8 +357,11 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	error = vc4_hvs_upload_linear_kernel(hvs,
 					   &hvs->mitchell_netravali_filter,
 					   mitchell_netravali_1_3_1_3_kernel);
-
-	vc4->hvs = hvs;
+	if (error) {
+		aprint_error_dev(self, "unable to upload initial vc4 kernel: %d\n", 
+			error);
+		return;		
+	}
 
 	dispcfg = HVS_READ(SCALER_DISPCTRL);
 
