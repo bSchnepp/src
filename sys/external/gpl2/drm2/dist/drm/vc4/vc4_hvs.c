@@ -237,7 +237,11 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 #endif
 {
 	struct drm_device *dev = data;
+#ifdef __NetBSD__
+	extern struct vc4_dev *vc4;	
+#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+#endif
 	irqreturn_t irqret = IRQ_NONE;
 	int channel;
 	u32 control;
