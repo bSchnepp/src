@@ -361,7 +361,6 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 	}
 
 	dpi = &sc->sc_dpi;
-	vc4 = to_vc4_dev(sc->sc_drm_dev);
 	vc4->dpi = dpi;
 
 	dpi->core_clock = fdtbus_clock_get(sc->sc_phandle , "core");

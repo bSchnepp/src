@@ -174,7 +174,11 @@ vc4_v3d_pm_put(struct vc4_dev *vc4)
 
 static void vc4_v3d_init_hw(struct drm_device *dev)
 {
+#if __NetBSD__
+	extern struct vc4_dev *vc4;
+#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+#endif
 
 	/* Take all the memory that would have been reserved for user
 	 * QPU programs, since we don't have an interface for running
