@@ -338,7 +338,6 @@ struct vc4_hvs {
 #endif
 
 #ifdef __NetBSD__
-	bus_space_tag_t dlist_bst;
 	bus_space_handle_t dlist_bsh;
 #else
 	u32 __iomem *dlist;

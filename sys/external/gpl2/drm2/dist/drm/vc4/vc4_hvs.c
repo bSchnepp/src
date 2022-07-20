@@ -90,13 +90,13 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 #ifdef __NetBSD__
 		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
-			 bus_space_read_4(vc4->hvs->dlist_bst, 
+			 bus_space_read_4(vc4->hvs->bst, 
 			 	vc4->hvs->dlist_bsh, i + 0),
-			 bus_space_read_4(vc4->hvs->dlist_bst, 
+			 bus_space_read_4(vc4->hvs->bst, 
 			 	vc4->hvs->dlist_bsh, i + 1),
-			 bus_space_read_4(vc4->hvs->dlist_bst, 
+			 bus_space_read_4(vc4->hvs->bst, 
 			 	vc4->hvs->dlist_bsh, i + 2),
-			 bus_space_read_4(vc4->hvs->dlist_bst, 
+			 bus_space_read_4(vc4->hvs->bst, 
 			 	vc4->hvs->dlist_bsh, i + 3));
 #else
 		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
@@ -176,11 +176,11 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 #ifdef __NetBSD__
 	for (i = 0; i < VC4_KERNEL_DWORDS; i++) {
 		if (i < VC4_LINEAR_PHASE_KERNEL_DWORDS)
-			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, 
-				i, kernel[i]);
+			bus_space_write_4(hvs->bst, hvs->dlist_bsh, 
+				i * sizeof(u32), kernel[i]);
 		else {
-			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, 
-				i, kernel[VC4_KERNEL_DWORDS - i - 1]);
+			bus_space_write_4(hvs->bst, hvs->dlist_bsh, 
+				i * sizeof(u32), kernel[VC4_KERNEL_DWORDS - i - 1]);
 		}
 	}
 #else
