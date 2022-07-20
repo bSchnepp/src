@@ -166,7 +166,6 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 #ifndef __NetBSD__
 	u32 __iomem *dst_kernel;
 #endif
-
 	ret = drm_mm_insert_node(&hvs->dlist_mm, space, VC4_KERNEL_DWORDS);
 	if (ret) {
 		DRM_ERROR("Failed to allocate space for filter kernel: %d\n",
@@ -178,11 +177,10 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 	for (i = 0; i < VC4_KERNEL_DWORDS; i++) {
 		if (i < VC4_LINEAR_PHASE_KERNEL_DWORDS)
 			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, 
-				space->start + (i * sizeof(u32)), kernel[i]);
+				i, kernel[i]);
 		else {
 			bus_space_write_4(hvs->dlist_bst, hvs->dlist_bsh, 
-				space->start + (i * sizeof(u32)), 
-				kernel[VC4_KERNEL_DWORDS - i - 1]);
+				i, kernel[VC4_KERNEL_DWORDS - i - 1]);
 		}
 	}
 #else
@@ -324,19 +322,17 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	hvs->bst = faa->faa_bst;
 	sc->sc_phandle = faa->faa_phandle;
-
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &hvs->bsh);
+	error = bus_space_map(faa->faa_bst, addr, size, BUS_SPACE_MAP_LINEAR, &hvs->bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
 		return;
 	}
 
-	/* 31 registers, based on the size of the array hvs_regs. */
-	hvs->bst = sc->sc_drm_dev->bst;
 	error = bus_space_subregion(hvs->bst, hvs->bsh, SCALER_DLIST_START, 
-		31 * sizeof(uint32_t), &hvs->dlist_bsh);
+		SCALER_DLIST_SIZE, &hvs->dlist_bsh);
 	if (error) {
 		aprint_error_dev(self, "unable to map regs region: %d\n", 
 			EINVAL);
@@ -403,7 +399,7 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	}
 
 	aprint_naive("\n");
-	aprint_normal(": GPU\n");
+	aprint_normal(": HVS\n");
 }
 
 #else
