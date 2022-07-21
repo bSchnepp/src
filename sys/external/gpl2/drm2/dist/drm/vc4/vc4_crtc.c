@@ -1252,11 +1252,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-#ifdef __NetBSD__
-	/* XXXX: Ensure hvs is loaded first */
-	return;
-#endif
-
 	/* For now, we create just the primary and the legacy cursor
 	 * planes.  We should be able to stack more planes on easily,
 	 * but to do that we would need to compute the bandwidth
@@ -1273,6 +1268,10 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
 				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
+#ifdef __NetBSD__
+	/* XXXX: Ensure hvs is loaded first */
+	return;
+#endif
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
 	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
