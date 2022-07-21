@@ -352,7 +352,11 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
 		return;
-	}	
+	}
+
+	dpi = &sc->sc_dpi;
+	dpi->bst = faa->faa_bst;
+	vc4->dpi = dpi;
 
 	if (DPI_READ(DPI_ID) != DPI_ID_VALUE) {
 		aprint_error_dev(self, "bad DPI ID: got %x, expected: %x\n",
@@ -360,18 +364,15 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 		return;	
 	}
 
-	dpi = &sc->sc_dpi;
-	vc4->dpi = dpi;
-
 	dpi->core_clock = fdtbus_clock_get(sc->sc_phandle , "core");
-	if (IS_ERR(dpi->core_clock)) {
+	if (dpi->core_clock == NULL) {
 		error = PTR_ERR(dpi->core_clock);
 		if (error != -EPROBE_DEFER)
 			DRM_ERROR("Failed to get core clock: %d\n", error);
 		return;
 	}
 	dpi->pixel_clock = fdtbus_clock_get(sc->sc_phandle, "pixel");
-	if (IS_ERR(dpi->pixel_clock)) {
+	if (dpi->pixel_clock == NULL) {
 		error = PTR_ERR(dpi->pixel_clock);
 		if (error != -EPROBE_DEFER)
 			DRM_ERROR("Failed to get pixel clock: %d\n", error);
@@ -395,7 +396,7 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 #endif
 
 	aprint_naive("\n");
-	aprint_normal(": GPU\n");
+	aprint_normal(": DPI\n");
 	return;
 
 err_destroy_encoder:

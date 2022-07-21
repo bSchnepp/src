@@ -1604,8 +1604,7 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	struct vc4dsi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
 
-	struct vc4_dsi * dsi = NULL;
-
+	struct vc4_dsi * dsi = &sc->sc_dsi;
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
@@ -1621,7 +1620,6 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_phandle = faa->faa_phandle;
 
-	dsi = dev_get_drvdata(sc->sc_dev);
 	/* TODO: Set dsi->port based on the values from the dtb */
 
 	INIT_LIST_HEAD(&dsi->bridge_chain);
@@ -1635,6 +1633,9 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 		    size, addr, error);
 		return;
 	}
+
+	dsi->bst = faa->faa_bst;
+	vc4->dsi1 = dsi;
 
 	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
 		aprint_error(": got invalid dsi ID: got 0x%x, expected 0x%x\n",

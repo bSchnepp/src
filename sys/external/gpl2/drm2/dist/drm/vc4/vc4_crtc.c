@@ -1221,7 +1221,7 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4crtc_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	struct vc4_crtc *vc4_crtc;
+	struct vc4_crtc *vc4_crtc = &sc->sc_crtc;
 	struct drm_crtc *crtc;
 	struct drm_plane *primary_plane, *cursor_plane, *destroy_plane, *temp;
 
@@ -1240,15 +1240,22 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	}
 
 	sc->sc_phandle = faa->faa_phandle;
-	crtc = &sc->sc_crtc.base;
+	crtc = &vc4_crtc->base;
+	vc4_crtc->bst = faa->faa_bst;
 
-	sc->sc_crtc.pdev = NULL;
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_crtc.bsh);
+	vc4_crtc->pdev = NULL;
+	vc4_crtc->bst = faa->faa_bst;
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &vc4_crtc->bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
 		return;
 	}
+
+#ifdef __NetBSD__
+	/* XXXX: Ensure hvs is loaded first */
+	return;
+#endif
 
 	/* For now, we create just the primary and the legacy cursor
 	 * planes.  We should be able to stack more planes on easily,
@@ -1266,8 +1273,8 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
 				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
-	sc->sc_crtc.channel = sc->sc_crtc.data->hvs_channel;
-	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(sc->sc_crtc.lut_r));
+	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
+	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
 
 	/* We support CTM, but only for one CRTC at a time. It's therefore
@@ -1306,7 +1313,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 
 	vc4_crtc_get_cob_allocation(&sc->sc_crtc);
 
-	vc4_crtc = &sc->sc_crtc;
 	CRTC_WRITE(PV_INTEN, 0);
 	CRTC_WRITE(PV_INTSTAT, PV_INT_VFP_START);
 	sc->sc_ih = fdtbus_intr_establish(phandle, 0, IPL_VM, IST_LEVEL,

@@ -481,6 +481,10 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 	dev_set_drvdata(sc->sc_dev, v3d);
 #endif
 
+	vc4->v3d = &sc->sc_v3d;
+	vc4->v3d->bst = faa->faa_bst;
+	
+	sc->sc_v3d.vc4 = vc4;
 	sc->sc_v3d.pdev = NULL;
 	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_v3d.bsh);
 	if (error) {
@@ -488,10 +492,6 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		    size, addr, error);
 		return;
 	}
-
-
-	vc4->v3d = &sc->sc_v3d;
-	sc->sc_v3d.vc4 = vc4;
 
 	/* May be okay without a clock. Reference Linux driver. */
 	sc->sc_v3d.clk = fdtbus_clock_get(phandle, NULL);
