@@ -583,8 +583,8 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4vec_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	struct vc4_vec *vec;
-	struct vc4_vec_encoder *vec_encoder;
+	struct vc4_vec *vec = &sc->sc_vec;
+	struct vc4_vec_encoder *vec_encoder = &sc->sc_vec_encoder;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -600,6 +600,8 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	vec->bst = faa->faa_bst;
+
 	error = -drm_mode_create_tv_properties(sc->sc_drm_dev, ARRAY_SIZE(tv_mode_names),
 					    tv_mode_names);
 	if (error) {
@@ -607,14 +609,11 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	vec = &sc->sc_vec;
-	vec_encoder = &sc->sc_vec_encoder;
-
 	vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
-	vec_encoder->vec = &sc->sc_vec;
-	vec->encoder = &sc->sc_vec_encoder.base.base;
+	vec_encoder->vec = vec;
+	vec->encoder = &vec_encoder->base.base;
 
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_vec.bsh);
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &vec->bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
@@ -636,7 +635,7 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	drm_encoder_init(sc->sc_drm_dev, vec->encoder, &vc4_vec_encoder_funcs,
 			 DRM_MODE_ENCODER_TVDAC, NULL);
 	drm_encoder_helper_add(vec->encoder, &vc4_vec_encoder_helper_funcs);
-	vec->connector = vc4_vec_connector_init(sc->sc_drm_dev, &sc->sc_vec);
+	vec->connector = vc4_vec_connector_init(sc->sc_drm_dev, vec);
 	if (IS_ERR(vec->connector)) {
 		aprint_error(": couldn't setup connector");
 		drm_encoder_cleanup(vec->encoder);
