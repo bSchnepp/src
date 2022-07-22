@@ -734,7 +734,8 @@ int vc4_mmap_object(struct drm_device *dev, off_t offset, size_t size,
     vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
     struct file *file)
 {
-	int ret = 0;
+	int ret = drm_gem_mmap_object(dev, offset, size, prot, uobjp, 
+		uoffsetp, file);
 	return ret;
 }
 #else

@@ -578,6 +578,17 @@ vc4vec_match(device_t parent, cfdata_t cfdata, void *aux)
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
+void vc4_vec_preattach(struct drm_device *drm)
+{
+	int error;
+	error = -drm_mode_create_tv_properties(drm, ARRAY_SIZE(tv_mode_names),
+					    tv_mode_names);
+	if (error) {
+		aprint_error("unable to register tv properties: %d\n", error);
+		return;
+	}
+}
+
 static void
 vc4vec_attach(device_t parent, device_t self, void *aux)
 {
@@ -601,14 +612,6 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	}
 
 	vec->bst = faa->faa_bst;
-
-	error = -drm_mode_create_tv_properties(sc->sc_drm_dev, ARRAY_SIZE(tv_mode_names),
-					    tv_mode_names);
-	if (error) {
-		aprint_error_dev(self, "unable to register tv properties: %d\n", error);
-		return;
-	}
-
 	vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
 	vec_encoder->vec = vec;
 	vec->encoder = &vec_encoder->base.base;

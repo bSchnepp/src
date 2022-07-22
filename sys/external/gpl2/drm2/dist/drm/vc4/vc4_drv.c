@@ -280,6 +280,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	if (error)
 		goto gem_destroy;
 #endif
+	vc4_vec_preattach(sc->sc_drm_dev);
 
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
