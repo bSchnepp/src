@@ -153,7 +153,9 @@ static void vc4_close(struct drm_device *dev, struct drm_file *file)
 
 #if __NetBSD__
 static const struct uvm_pagerops vc4_vm_ops = {
-	.pgo_fault = &vc4_fault,
+	.pgo_fault = vc4_fault,
+	.pgo_reference = drm_gem_pager_reference,
+	.pgo_detach = drm_gem_pager_detach,
 };
 #else
 static const struct vm_operations_struct vc4_vm_ops = {
@@ -235,15 +237,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	const int phandle = faa->faa_phandle;
 	int error;
 
-	sc->sc_dev = self;
-	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (IS_ERR(sc->sc_drm_dev)) {
-		aprint_error_dev(self, "unable to create drm device: %ld\n",
-		    PTR_ERR(sc->sc_drm_dev));
-		sc->sc_drm_dev = NULL;
-		return;
-	}
-
 	vc4 = devm_kzalloc(sc->sc_dev, sizeof(*vc4), GFP_KERNEL);
 	if (!vc4) {
 		aprint_error_dev(self, "unable to allocate vc4: %d\n", 
@@ -251,6 +244,14 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	sc->sc_dev = self;
+	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
+	if (sc->sc_drm_dev == NULL) {
+		aprint_error_dev(self, "unable to create drm device: %ld\n",
+		    PTR_ERR(sc->sc_drm_dev));
+		sc->sc_drm_dev = NULL;
+		return;
+	}
 	sc->sc_drm_dev->dev_private = &sc->sc_pdev;
 
 	sc->sc_phandle = phandle;
@@ -354,7 +355,7 @@ static struct drm_driver vc4_drm_driver = {
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
 #ifdef __NetBSD__
 	.fops = NULL,
-	.mmap_object	    = drm_gem_mmap_object,
+	.mmap_object	    = vc4_mmap_object,
 	.gem_uvm_ops	    = &drm_gem_cma_uvm_ops,
 #else
 	.fops = &vc4_drm_fops,

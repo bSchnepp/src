@@ -729,7 +729,15 @@ vm_fault_t vc4_fault(struct vm_fault *vmf)
 #endif
 }
 
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+int vc4_mmap_object(struct drm_device *dev, off_t offset, size_t size,
+    vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
+    struct file *file)
+{
+	int ret = 0;
+	return ret;
+}
+#else
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_gem_object *gem_obj;
