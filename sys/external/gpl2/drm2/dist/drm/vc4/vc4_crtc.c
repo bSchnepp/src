@@ -1238,7 +1238,9 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	struct vc4crtc_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
 	struct vc4_crtc *vc4_crtc = &sc->sc_crtc;
+
 	struct drm_crtc *crtc;
+	const char *name;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -1267,13 +1269,19 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-#ifdef __NetBSD__
-	/* XXXX: Ensure hvs is loaded first */
-	return;
-#endif
 	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
 				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
+
+	name = faa->faa_name;
+	vc4_crtc->data = &pvalve0_data;
+	for (i = 0; i < strnlen(name, 50); i++) {			
+		if (name[i] == '1')
+			vc4_crtc->data = &pvalve1_data;
+		if (name[i] == '2')
+			vc4_crtc->data = &pvalve2_data;
+
+	}
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
 	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
@@ -1329,6 +1337,9 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		vc4_crtc->lut_g[i] = i;
 		vc4_crtc->lut_b[i] = i;
 	}
+
+	aprint_naive("\n");
+	aprint_normal(": CRTC\n");
 	return;
 
 err_destroy_planes:
@@ -1337,9 +1348,6 @@ err_destroy_planes:
 		if (destroy_plane->possible_crtcs == drm_crtc_mask(crtc))
 		    destroy_plane->funcs->destroy(destroy_plane);
 	}
-
-	aprint_naive("\n");
-	aprint_normal(": CRTC\n");
 }
 
 #else
