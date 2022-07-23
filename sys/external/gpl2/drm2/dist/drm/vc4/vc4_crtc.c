@@ -1216,6 +1216,22 @@ vc4crtc_match(device_t parent, cfdata_t cfdata, void *aux)
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
+struct drm_plane *primary_plane, *cursor_plane, *destroy_plane, *temp;
+
+void vc4_crtc_preattach(struct drm_device *drm)
+{
+	/* For now, we create just the primary and the legacy cursor
+	 * planes.  We should be able to stack more planes on easily,
+	 * but to do that we would need to compute the bandwidth
+	 * requirement of the plane configuration, and reject ones
+	 * that will take too much.
+	 */
+	primary_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_PRIMARY);
+	if (IS_ERR(primary_plane)) {
+		aprint_error(": failed to construct primary plane (%ld)\n", PTR_ERR(primary_plane));
+	}	
+}
+
 static void
 vc4crtc_attach(device_t parent, device_t self, void *aux)
 {
@@ -1223,7 +1239,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	struct fdt_attach_args * const faa = aux;
 	struct vc4_crtc *vc4_crtc = &sc->sc_crtc;
 	struct drm_crtc *crtc;
-	struct drm_plane *primary_plane, *cursor_plane, *destroy_plane, *temp;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -1252,26 +1267,13 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	/* For now, we create just the primary and the legacy cursor
-	 * planes.  We should be able to stack more planes on easily,
-	 * but to do that we would need to compute the bandwidth
-	 * requirement of the plane configuration, and reject ones
-	 * that will take too much.
-	 */
-	primary_plane = vc4_plane_init(sc->sc_drm_dev, DRM_PLANE_TYPE_PRIMARY);
-	if (IS_ERR(primary_plane)) {
-		dev_err(sc->sc_dev, "failed to construct primary plane\n");
-		error = PTR_ERR(primary_plane);
-		goto err;
-	}
-
-	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
-				  &vc4_crtc_funcs, NULL);
-	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
 #ifdef __NetBSD__
 	/* XXXX: Ensure hvs is loaded first */
 	return;
 #endif
+	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
+				  &vc4_crtc_funcs, NULL);
+	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
 	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
@@ -1337,9 +1339,7 @@ err_destroy_planes:
 	}
 
 	aprint_naive("\n");
-	aprint_normal(": GPU\n");
-err:
-	return;
+	aprint_normal(": CRTC\n");
 }
 
 #else
