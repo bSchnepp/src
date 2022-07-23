@@ -734,8 +734,14 @@ int vc4_mmap_object(struct drm_device *dev, off_t offset, size_t size,
     vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
     struct file *file)
 {
+	unsigned long vm_pgoff;
+
+	vm_pgoff = *uoffsetp;
+	*uoffsetp = 0;
 	int ret = drm_gem_mmap_object(dev, offset, size, prot, uobjp, 
 		uoffsetp, file);
+	*uoffsetp = vm_pgoff;
+	
 	return ret;
 }
 #else

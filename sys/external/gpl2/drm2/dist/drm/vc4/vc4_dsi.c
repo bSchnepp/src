@@ -1567,8 +1567,7 @@ static int vc4dsi_match(device_t, cfdata_t, void *);
 static void vc4dsi_attach(device_t, device_t, void *);
 
 static const struct device_compatible_entry compat_data[] = {
-	{ .compat = "brcm,bcm2835-dsi1",
-	  .data = (void *)((uintptr_t)(1)) },
+	{ .compat = "brcm,bcm2835-dsi1" },
 	DEVICE_COMPAT_EOL
 };
 
