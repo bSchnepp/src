@@ -729,12 +729,71 @@ vm_fault_t vc4_fault(struct vm_fault *vmf)
 #endif
 
 #ifdef __NetBSD__
+static int vc4_mmap_object_locked(struct drm_device *dev, off_t offset, size_t size,
+    vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
+    struct file *fp)
+{
+	struct vc4_bo *bo;
+	struct drm_gem_object *gem_obj;
+
+	struct drm_file *file = fp->f_data;
+
+	const unsigned long startpage = offset >> PAGE_SHIFT;
+	const unsigned long npages = size >> PAGE_SHIFT;
+
+
+	KASSERT(mutex_is_locked(&dev->struct_mutex));
+	KASSERT(prot == (prot & (PROT_READ | PROT_WRITE)));
+	KASSERT(0 <= offset);
+	KASSERT(offset == (offset & ~(PAGE_SIZE-1)));
+	KASSERT(size == (npages << PAGE_SHIFT));
+
+	struct drm_vma_offset_node *const node =
+	    drm_vma_offset_exact_lookup(dev->vma_offset_manager, startpage,
+		npages);
+	
+	if (node == NULL) {
+		*uobjp = NULL;
+		*uoffsetp = (voff_t)-1;
+		return 0;
+	}
+
+	if (!drm_vma_node_is_allowed(node, file))
+		return -EACCES;
+	
+	gem_obj = container_of(node, struct drm_gem_object, vma_node);
+	KASSERT(gem_obj->dev == dev);
+
+	drm_gem_object_get(gem_obj);
+	*uobjp = &gem_obj->gemo_uvmobj;
+	*uoffsetp = 0;
+
+	bo = to_vc4_bo(gem_obj);
+
+	if (bo->validated_shader && (prot & VM_PROT_WRITE)) {
+		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
+		return -EINVAL;
+	}
+
+	if (bo->madv != VC4_MADV_WILLNEED) {
+		DRM_DEBUG("mmaping of %s BO not allowed\n",
+			  bo->madv == VC4_MADV_DONTNEED ?
+			  "purgeable" : "purged");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int vc4_mmap_object(struct drm_device *dev, off_t offset, size_t size,
     vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
-    struct file *file)
+    struct file *fp)
 {
-	return drm_gem_mmap_object(dev, offset, size, prot, uobjp, 
-		uoffsetp, file);
+	int error;
+	mutex_lock(&dev->struct_mutex);
+	error = vc4_mmap_object_locked(dev, offset, size, prot, uobjp, uoffsetp, fp);
+	mutex_unlock(&dev->struct_mutex);
+	return error;
 }
 #else
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
