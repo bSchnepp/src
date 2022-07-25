@@ -733,14 +733,8 @@ int vc4_mmap_object(struct drm_device *dev, off_t offset, size_t size,
     vm_prot_t prot, struct uvm_object **uobjp, voff_t *uoffsetp,
     struct file *file)
 {
-	unsigned long vm_pgoff;
-
-	vm_pgoff = *uoffsetp;
-	*uoffsetp = 0;
-	int ret = drm_gem_mmap_object(dev, offset, size, prot, uobjp, 
+	return drm_gem_mmap_object(dev, offset, size, prot, uobjp, 
 		uoffsetp, file);
-	*uoffsetp = vm_pgoff;
-	return ret;
 }
 #else
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
@@ -801,11 +795,7 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 #ifdef __NetBSD__
 int vc4_prime_mmap(struct drm_gem_object *obj, off_t *offp, size_t len, 
     int prot, int *flagsp, int *advicep, struct uvm_object **uobjp, int *maxprotp)
-#else
-int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
-#endif
 {
-#ifdef __NetBSD__
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader) {
@@ -813,7 +803,10 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 	return drm_gem_cma_prime_mmap(obj, offp, len, 0, flagsp, advicep, uobjp, maxprotp);
+}
 #else
+int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
@@ -822,8 +815,8 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	}
 
 	return drm_gem_cma_prime_mmap(obj, vma);
-#endif
 }
+#endif
 
 void *vc4_prime_vmap(struct drm_gem_object *obj)
 {
