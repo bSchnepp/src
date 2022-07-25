@@ -707,13 +707,12 @@ struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
 #ifdef __NetBSD__
 int vc4_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr, struct vm_page **pps, 
     int npages, int centeridx, vm_prot_t access_type, int flags)
+{
+	return -EFAULT;
+}
 #else
 vm_fault_t vc4_fault(struct vm_fault *vmf)
-#endif
 {
-#ifdef __NetBSD__	
-	return 0;
-#else
 	struct vm_area_struct *vma = vmf->vma;
 
 	struct drm_gem_object *obj = vma->vm_private_data;
@@ -726,8 +725,8 @@ vm_fault_t vc4_fault(struct vm_fault *vmf)
 	WARN_ON(bo->madv != __VC4_MADV_PURGED);
 	mutex_unlock(&bo->madv_lock);
 	return VM_FAULT_SIGBUS;
-#endif
 }
+#endif
 
 #ifdef __NetBSD__
 int vc4_mmap_object(struct drm_device *dev, off_t offset, size_t size,
@@ -741,7 +740,6 @@ int vc4_mmap_object(struct drm_device *dev, off_t offset, size_t size,
 	int ret = drm_gem_mmap_object(dev, offset, size, prot, uobjp, 
 		uoffsetp, file);
 	*uoffsetp = vm_pgoff;
-	
 	return ret;
 }
 #else
