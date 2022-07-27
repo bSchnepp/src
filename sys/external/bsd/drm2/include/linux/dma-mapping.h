@@ -74,7 +74,7 @@ dma_addressing_limited(device_t dev)
 }
 
 void *dma_alloc_wc(struct device *, size_t, bus_dmamap_t *, int);
-
+void *dma_mmap_wc(struct device *, size_t, off_t, int, bus_dmamap_t *);
 void dma_free_wc(struct device *, size_t, void *, bus_dmamap_t);
 
 #endif  /* _LINUX_DMA_MAPPING_H_ */

@@ -168,6 +168,15 @@ fail0:
 	return (void *) 0;
 }
 
+void dma_mmap_wc(struct device *dev, size_t size,
+				off_t off, int prot, bus_dmamap_t *dma_addr)
+{
+	struct gpu_softc *const sc = device_private(dev);
+
+	bus_dmamem_mmap(sc->sc_drm_dev->dmat, size, (*dma_addr)->dm_segs,
+		(*dma_addr)->dm_nsegs, off, prot, BUS_DMA_WAITOK);
+}
+
 void dma_free_wc(struct device *dev, size_t size,
 				void *cpu_addr, bus_dmamap_t dma_addr)
 {
