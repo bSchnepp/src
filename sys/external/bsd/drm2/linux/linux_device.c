@@ -173,7 +173,7 @@ void dma_mmap_wc(struct device *dev, size_t size,
 {
 	struct gpu_softc *const sc = device_private(dev);
 
-	bus_dmamem_mmap(sc->sc_drm_dev->dmat, size, (*dma_addr)->dm_segs,
+	bus_dmamem_mmap(sc->sc_drm_dev->dmat, (*dma_addr)->dm_segs,
 		(*dma_addr)->dm_nsegs, off, prot, BUS_DMA_WAITOK);
 }
 

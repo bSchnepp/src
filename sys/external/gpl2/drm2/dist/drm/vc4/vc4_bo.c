@@ -782,6 +782,7 @@ static int vc4_mmap_object_locked(struct drm_device *dev, off_t offset, size_t s
 		return -EINVAL;
 	}
 
+	dma_mmap_wc(bo->base.base.dev->dev, size, *uoffsetp, prot, &bo->base.dmamap);
 	return 0;
 }
 
