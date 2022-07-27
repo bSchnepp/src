@@ -578,17 +578,6 @@ vc4vec_match(device_t parent, cfdata_t cfdata, void *aux)
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
-void vc4_vec_preattach(struct drm_device *drm)
-{
-	int error;
-	error = -drm_mode_create_tv_properties(drm, ARRAY_SIZE(tv_mode_names),
-					    tv_mode_names);
-	if (error) {
-		aprint_error("unable to register tv properties: %d\n", error);
-		return;
-	}
-}
-
 static void
 vc4vec_attach(device_t parent, device_t self, void *aux)
 {
@@ -611,6 +600,7 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	vc4->vec = vec;
 	vec->bst = faa->faa_bst;
 	vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
 	vec_encoder->vec = vec;
@@ -631,9 +621,13 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		}
 		return;
 	}
-#ifdef notyet
-	pm_runtime_enable(sc->sc_dev);
-#endif
+
+	error = -drm_mode_create_tv_properties(sc->sc_drm_dev, 
+		ARRAY_SIZE(tv_mode_names), tv_mode_names);
+	if (error) {
+		aprint_error("unable to register tv properties: %d\n", error);
+		return;
+	}
 
 	drm_encoder_init(sc->sc_drm_dev, vec->encoder, &vc4_vec_encoder_funcs,
 			 DRM_MODE_ENCODER_TVDAC, NULL);
@@ -644,11 +638,6 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		drm_encoder_cleanup(vec->encoder);
 		return;
 	}
-
-#ifdef notyet
-	dev_set_drvdata(sc->sc_dev, vec);
-#endif
-	vc4->vec = vec;
 
 	aprint_naive("\n");
 	aprint_normal(": VEC\n");

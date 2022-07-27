@@ -477,16 +477,12 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_phandle = faa->faa_phandle;
 
-#ifdef notyet
-	dev_set_drvdata(sc->sc_dev, v3d);
-#endif
-
 	vc4->v3d = &sc->sc_v3d;
 	vc4->v3d->bst = faa->faa_bst;
 	
 	sc->sc_v3d.vc4 = vc4;
 	sc->sc_v3d.pdev = NULL;
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_v3d.bsh);
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &vc4->v3d->bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
@@ -494,7 +490,7 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 	}
 
 	/* May be okay without a clock. Reference Linux driver. */
-	sc->sc_v3d.clk = fdtbus_clock_get(phandle, NULL);
+	vc4->v3d->clk = fdtbus_clock_get(phandle, NULL);
 
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
 		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
@@ -502,7 +498,7 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	error = clk_enable(sc->sc_v3d.clk);
+	error = clk_enable(vc4->v3d->clk);
 	if (error != 0)
 		return;
 
