@@ -656,10 +656,8 @@ void vc4_bo_dec_usecnt(struct vc4_bo *bo)
 	/* Fast path: if the BO is still retained by someone, no need to test
 	 * the madv value.
 	 */
-#ifndef __NetBSD__
 	if (refcount_dec_not_one(&bo->usecnt))
 		return;
-#endif
 
 	mutex_lock(&bo->madv_lock);
 	if (refcount_dec_and_test(&bo->usecnt) &&
