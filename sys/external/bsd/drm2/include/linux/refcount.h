@@ -85,12 +85,30 @@ refcount_dec_and_test(struct refcount *rc)
 
 	do {
 		old = atomic_read(&rc->rc_count);
+		if (old == 1)
+			break;
+		new = old - 1;
+	} while (atomic_cmpxchg(&rc->rc_count, old, new) != old);
+
+	return old >= 1;
+}
+
+static inline bool __must_check
+refcount_dec_not_one(struct refcount *rc)
+{
+	unsigned old, new;
+
+	do {
+		old = atomic_read(&rc->rc_count);
+		if (old == 1)
+			return 0;
 		KASSERT(old);
 		new = old - 1;
 	} while (atomic_cmpxchg(&rc->rc_count, old, new) != old);
 
 	return old == 1;
 }
+
 
 static inline bool __must_check
 refcount_dec_and_lock_irqsave(struct refcount *rc, struct spinlock *lock,
