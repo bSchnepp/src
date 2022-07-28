@@ -234,40 +234,6 @@ vc4_match(device_t parent, cfdata_t cfdata, void *aux)
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
-static int
-vc4_activate(device_t self, struct fdt_endpoint *ep, bool activate)
-{
-	int error;
-	struct vc4_softc *const sc = device_private(self);
-	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
-
-	error = vc4_kms_load(sc->sc_drm_dev);
-	if (error < 0)
-		goto unbind_all;
-
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(sc->sc_drm_dev, 0);
-	if (error < 0) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		goto unbind_all;
-	}
-
-	drm_fbdev_generic_setup(sc->sc_drm_dev, 16);
-	return 0;
-
-unbind_all:
-	vc4_gem_destroy(sc->sc_drm_dev);
-	vc4_bo_cache_destroy(sc->sc_drm_dev);
-	drm_dev_put(sc->sc_drm_dev);
-	return error;
-}
-
-static int
-vc4_enable(device_t dev, struct fdt_endpoint *ep, bool enable)
-{
-	return 0;
-}
-
 static void
 vc4_attach(device_t parent, device_t self, void *aux)
 {
@@ -310,23 +276,25 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	if (error)
 		goto dev_put;
 
-	drm_mode_config_init(sc->sc_drm_dev);
+	drm_mode_config_init(vc4->dev);
+	vc4_gem_init(vc4->dev);
 
-	vc4_gem_init(sc->sc_drm_dev);
+	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
-#ifdef notyet
-	error = component_bind_all(sc->sc_dev, sc->sc_drm_dev);
-	if (error)
-		goto gem_destroy;
-#endif
-
-	sc->sc_ports.dp_ep_activate = vc4_activate;
-	sc->sc_ports.dp_ep_enable = vc4_enable;
-	fdt_ports_register(&sc->sc_ports, self, phandle, EP_OTHER);
+	error = vc4_kms_load(vc4->dev);
+	if (error < 0)
+		goto unbind_all;
 
 	aprint_naive("\n");
 	aprint_normal(": VC4 Core\n");
 	return;
+
+unbind_all:
+	vc4_gem_destroy(sc->sc_drm_dev);
+	vc4_bo_cache_destroy(sc->sc_drm_dev);
+	drm_dev_put(sc->sc_drm_dev);
+	return;
+	
 dev_put:
 	drm_dev_put(sc->sc_drm_dev);
 	return;

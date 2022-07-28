@@ -50,6 +50,11 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
+#ifdef __NetBSD__
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
+#endif
+
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -1180,17 +1185,15 @@ vc4_crtc_get_cob_allocation(struct vc4_crtc *vc4_crtc)
 static int vc4crtc_match(device_t, cfdata_t, void *);
 static void vc4crtc_attach(device_t, device_t, void *);
 
-static const struct vc4_crtc_data pvalve0_data;
-static const struct vc4_crtc_data pvalve1_data;
-static const struct vc4_crtc_data pvalve2_data;
+static const struct vc4_crtc_data pvalve_data[3];
 
 static const struct device_compatible_entry compat_data[] = {
 	{ .compat = "brcm,bcm2835-pixelvalve0",
-	  .data = &pvalve0_data },
+	  .data = &pvalve_data[0] },
 	{ .compat = "brcm,bcm2835-pixelvalve1",
-	  .data = &pvalve1_data },
+	  .data = &pvalve_data[1] },
 	{ .compat = "brcm,bcm2835-pixelvalve2",
-	  .data = &pvalve2_data },
+	  .data = &pvalve_data[2] },
 	DEVICE_COMPAT_EOL
 };
 
@@ -1246,6 +1249,7 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
+	int dev;
 	int i;
 
 	sc->sc_dev = self;
@@ -1274,14 +1278,15 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
 
 	name = faa->faa_name;
-	vc4_crtc->data = &pvalve0_data;
+	dev = 0;
 	for (i = 0; i < strnlen(name, 50); i++) {			
 		if (name[i] == '1')
-			vc4_crtc->data = &pvalve1_data;
+			dev = 1;
 		if (name[i] == '2')
-			vc4_crtc->data = &pvalve2_data;
-
+			dev = 2;
 	}
+	vc4_crtc->data = &pvalve_data[dev];
+	
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
 	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
@@ -1337,9 +1342,21 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		vc4_crtc->lut_g[i] = i;
 		vc4_crtc->lut_b[i] = i;
 	}
+	
+
+	/* crtc #2 should be the last driver to load, so this is safe. */
+	if (dev == 2) {
+		/* XXX errno Linux->NetBSD */
+		error = -drm_dev_register(vc4->dev, 0);
+		if (error < 0) {
+			aprint_error_dev(self, "unable to register drm: %d\n", error);
+			goto unbind_all;
+		}
+		drm_fbdev_generic_setup(vc4->dev, 16);
+	}
 
 	aprint_naive("\n");
-	aprint_normal(": CRTC\n");
+	aprint_normal(": CRTC (%d)\n", dev);
 	return;
 
 err_destroy_planes:
@@ -1348,6 +1365,13 @@ err_destroy_planes:
 		if (destroy_plane->possible_crtcs == drm_crtc_mask(crtc))
 		    destroy_plane->funcs->destroy(destroy_plane);
 	}
+	return;
+
+unbind_all:
+	vc4_gem_destroy(sc->sc_drm_dev);
+	vc4_bo_cache_destroy(sc->sc_drm_dev);
+	drm_dev_put(sc->sc_drm_dev);
+	return;
 }
 
 #else

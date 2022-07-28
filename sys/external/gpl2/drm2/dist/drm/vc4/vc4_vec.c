@@ -641,11 +641,6 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 
 	aprint_naive("\n");
 	aprint_normal(": VEC\n");
-	return;
-
-#ifdef notyet
-	pm_runtime_disable(dev);
-#endif
 }
 #else
 static const struct of_device_id vc4_vec_dt_match[] = {
