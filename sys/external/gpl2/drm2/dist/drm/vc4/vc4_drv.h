@@ -876,9 +876,6 @@ extern struct platform_driver vc4_hdmi_driver;
 
 /* vc4_vec.c */
 extern struct platform_driver vc4_vec_driver;
-#ifdef __NetBSD__
-void vc4_crtc_preattach(struct drm_device *drm);
-#endif
 
 /* vc4_txp.c */
 extern struct platform_driver vc4_txp_driver;

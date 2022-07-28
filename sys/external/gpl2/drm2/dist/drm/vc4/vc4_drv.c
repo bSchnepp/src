@@ -279,22 +279,28 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	drm_mode_config_init(vc4->dev);
 	vc4_gem_init(vc4->dev);
 
+	/* crtc should be the last driver to load, so this is safe. */
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
 	error = vc4_kms_load(vc4->dev);
 	if (error < 0)
 		goto unbind_all;
 
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(vc4->dev, 0);
+	if (error < 0) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	drm_fbdev_generic_setup(vc4->dev, 16);
+
 	aprint_naive("\n");
 	aprint_normal(": VC4 Core\n");
 	return;
-
 unbind_all:
 	vc4_gem_destroy(sc->sc_drm_dev);
 	vc4_bo_cache_destroy(sc->sc_drm_dev);
-	drm_dev_put(sc->sc_drm_dev);
-	return;
-	
 dev_put:
 	drm_dev_put(sc->sc_drm_dev);
 	return;

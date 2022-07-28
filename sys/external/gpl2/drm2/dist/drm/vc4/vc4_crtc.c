@@ -1221,20 +1221,6 @@ vc4crtc_match(device_t parent, cfdata_t cfdata, void *aux)
 
 struct drm_plane *primary_plane, *cursor_plane, *destroy_plane, *temp;
 
-void vc4_crtc_preattach(struct drm_device *drm)
-{
-	/* For now, we create just the primary and the legacy cursor
-	 * planes.  We should be able to stack more planes on easily,
-	 * but to do that we would need to compute the bandwidth
-	 * requirement of the plane configuration, and reject ones
-	 * that will take too much.
-	 */
-	primary_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_PRIMARY);
-	if (IS_ERR(primary_plane)) {
-		aprint_error(": failed to construct primary plane (%ld)\n", PTR_ERR(primary_plane));
-	}	
-}
-
 static void
 vc4crtc_attach(device_t parent, device_t self, void *aux)
 {
@@ -1271,6 +1257,17 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
 		return;
+	}
+
+	/* For now, we create just the primary and the legacy cursor
+	 * planes.  We should be able to stack more planes on easily,
+	 * but to do that we would need to compute the bandwidth
+	 * requirement of the plane configuration, and reject ones
+	 * that will take too much.
+	 */
+	primary_plane = vc4_plane_init(sc->sc_drm_dev, DRM_PLANE_TYPE_PRIMARY);
+	if (IS_ERR(primary_plane)) {
+		aprint_error(": failed to construct primary plane (%ld)\n", PTR_ERR(primary_plane));
 	}
 
 	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
@@ -1342,18 +1339,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		vc4_crtc->lut_g[i] = i;
 		vc4_crtc->lut_b[i] = i;
 	}
-	
-
-	/* crtc #2 should be the last driver to load, so this is safe. */
-	if (dev == 2) {
-		/* XXX errno Linux->NetBSD */
-		error = -drm_dev_register(vc4->dev, 0);
-		if (error < 0) {
-			aprint_error_dev(self, "unable to register drm: %d\n", error);
-			goto unbind_all;
-		}
-		drm_fbdev_generic_setup(vc4->dev, 16);
-	}
 
 	aprint_naive("\n");
 	aprint_normal(": CRTC (%d)\n", dev);
@@ -1365,12 +1350,6 @@ err_destroy_planes:
 		if (destroy_plane->possible_crtcs == drm_crtc_mask(crtc))
 		    destroy_plane->funcs->destroy(destroy_plane);
 	}
-	return;
-
-unbind_all:
-	vc4_gem_destroy(sc->sc_drm_dev);
-	vc4_bo_cache_destroy(sc->sc_drm_dev);
-	drm_dev_put(sc->sc_drm_dev);
 	return;
 }
 
