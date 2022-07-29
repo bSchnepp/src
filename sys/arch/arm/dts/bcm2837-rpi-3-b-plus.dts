@@ -58,6 +58,8 @@
 };
 
 &v3d {
+	clocks = <&clocks BCM2835_CLOCK_V3D>;
+	clock-names = "v3d";
 	status = "okay";
 };
 

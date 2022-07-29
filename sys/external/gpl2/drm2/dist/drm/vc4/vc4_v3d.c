@@ -489,7 +489,11 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 	sc->sc_v3d.pdev = NULL;
 
 	/* May be okay without a clock. Reference Linux driver. */
-	vc4->v3d->clk = fdtbus_clock_get(phandle, NULL);
+	vc4->v3d->clk = fdtbus_clock_get(phandle, "v3d");
+	if (vc4->v3d->clk == NULL) {
+		aprint_error(": failed to obtain VC4 V3D clock\n");
+		return;
+	}
 
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
 		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
