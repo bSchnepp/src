@@ -35,6 +35,11 @@ device	bcmpmwdog: sysmon_wdog
 attach	bcmpmwdog at fdt with bcmpmwdog_fdt
 file	arch/arm/broadcom/bcm2835_pmwdog.c	bcmpmwdog_fdt
 
+# Power Controller
+device	bcmpower
+attach	bcmpower at fdt with bcmpower_fdt
+file	arch/arm/broadcom/bcm2835_power.c	bcmpower_fdt
+
 # Random number generator (BCM2835_RNG_BASE)
 device	bcmrng
 attach bcmrng at fdt with bcmrng_fdt

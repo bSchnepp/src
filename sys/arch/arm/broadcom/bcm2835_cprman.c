@@ -57,6 +57,13 @@ enum {
 	CPRMAN_CLOCK_PERIIMAGE = 29,
 	CPRMAN_CLOCK_PWM = 30,
 	CPRMAN_CLOCK_PCM = 31,
+	CPRMAN_CLOCK_DPI = 44,
+	CPRMAN_CLOCK_CAM0 = 45,
+	CPRMAN_CLOCK_CAM1 = 46,
+	CPRMAN_CLOCK_DSI0E = 47,
+	CPRMAN_CLOCK_DSI1E = 48,
+	CPRMAN_CLOCK_DSI0P = 49,
+	CPRMAN_CLOCK_DSI1P = 50,
 	CPRMAN_CLOCK_EMMC2 = 51,
 	CPRMAN_NCLOCK
 };
@@ -145,6 +152,7 @@ cprman_get_rate(void *priv, struct clk *baseclk)
 		return bcm283x_clk_get_rate_vec();
 	case CPRMAN_CLOCK_HSM:
 		return bcm283x_clk_get_rate_hsm();
+	case VCPROP_CLK_V3D:
 	case CPRMAN_CLOCK_V3D:
 		return bcm283x_clk_get_rate_v3d();
 	case CPRMAN_CLOCK_EMMC:
@@ -213,6 +221,7 @@ cprman_attach(device_t parent, device_t self, void *aux)
 	cprman_add_clock(sc, CPRMAN_CLOCK_EMMC2, "emmc2");
 
 	cprman_add_firm_clock(sc, VCPROP_CLK_PIXEL, "pixel");
+	cprman_add_firm_clock(sc, VCPROP_CLK_V3D, "v3d");
 
 	aprint_naive("\n");
 	aprint_normal(": BCM283x Clock Controller\n");
