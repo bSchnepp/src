@@ -40,6 +40,7 @@ __KERNEL_RCSID(0, "$NetBSD: bcm2835_mbox.c,v 1.17 2021/08/07 16:18:43 thorpej Ex
 #include <sys/bus.h>
 #include <sys/mutex.h>
 
+#include <arch/evbarm/rpi/vcprop.h>
 #include <arm/broadcom/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835_mboxreg.h>
 #include <arm/broadcom/bcm2835reg.h>
@@ -103,6 +104,9 @@ bcmmbox_attach(struct bcm2835mbox_softc *sc)
 
 	baa.baa_dmat = sc->sc_dmat;
 	sc->sc_platdev = config_found(sc->sc_dev, &baa, NULL, CFARGS_NONE);
+	
+	/* Enable power here, for now. */
+	rpi_set_domain(VCPROP_DOMAIN_V3D, 1);
 }
 
 int
