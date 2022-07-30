@@ -12,6 +12,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef __NetBSD__
 #include <dev/fdt/fdtvar.h>
+#include <arch/evbarm/rpi/vcprop.h>
 #endif
 
 #include <linux/clk.h>
@@ -494,6 +495,8 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		aprint_error(": failed to obtain VC4 V3D clock\n");
 		return;
 	}
+
+	fdtbus_powerdomain_enable(phandle);
 
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
 		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
