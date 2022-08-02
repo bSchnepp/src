@@ -496,7 +496,8 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	fdtbus_powerdomain_enable(phandle);
+	/* Enable power here, for now. */
+	rpi_set_domain(VCPROP_DOMAIN_V3D, 1);
 
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
 		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",

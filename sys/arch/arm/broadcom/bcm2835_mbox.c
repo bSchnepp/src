@@ -104,9 +104,6 @@ bcmmbox_attach(struct bcm2835mbox_softc *sc)
 
 	baa.baa_dmat = sc->sc_dmat;
 	sc->sc_platdev = config_found(sc->sc_dev, &baa, NULL, CFARGS_NONE);
-	
-	/* Enable power here, for now. */
-	rpi_set_domain(VCPROP_DOMAIN_V3D, 1);
 }
 
 int
