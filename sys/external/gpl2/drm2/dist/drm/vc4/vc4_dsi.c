@@ -25,6 +25,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef __NetBSD__
 #include <dev/fdt/fdtvar.h>
+#include <arch/evbarm/rpi/vcprop.h>
 #endif
 
 #include <linux/clk-provider.h>
@@ -1620,6 +1621,7 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	sc->sc_phandle = faa->faa_phandle;
 
 	/* TODO: Set dsi->port based on the values from the dtb */
+	sc->sc_dsi.port = 1;
 
 	INIT_LIST_HEAD(&dsi->bridge_chain);
 	sc->sc_encoder.base.type = VC4_ENCODER_TYPE_DSI1;
@@ -1658,26 +1660,20 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	}
 
 	dsi->escape_clock = fdtbus_clock_get(phandle, "escape");
-	if (IS_ERR(dsi->escape_clock)) {
-		error = PTR_ERR(dsi->escape_clock);
-		if (error != -EPROBE_DEFER)
-			dev_err(sc->sc_dev, "Failed to get escape clock: %d\n", error);
+	if (dsi->escape_clock == NULL) {
+		aprint_error_dev(self, "Failed to get escape clock: %d\n", error);
 		return;
 	}
 
 	dsi->pll_phy_clock = fdtbus_clock_get(phandle, "phy");
-	if (IS_ERR(dsi->pll_phy_clock)) {
-		error = PTR_ERR(dsi->pll_phy_clock);
-		if (error != -EPROBE_DEFER)
-			dev_err(sc->sc_dev, "Failed to get phy clock: %d\n", error);
+	if (dsi->pll_phy_clock == NULL) {
+		aprint_error_dev(self, "Failed to get phy clock: %d\n", error);
 		return;
 	}
 
 	dsi->pixel_clock = fdtbus_clock_get(phandle, "pixel");
-	if (IS_ERR(dsi->pixel_clock)) {
-		error = PTR_ERR(dsi->pixel_clock);
-		if (error != -EPROBE_DEFER)
-			dev_err(sc->sc_dev, "Failed to get pixel clock: %d\n", error);
+	if (dsi->pixel_clock == NULL) {
+		aprint_error_dev(self, "Failed to get pixel clock: %d\n", error);
 		return;
 	}
 
