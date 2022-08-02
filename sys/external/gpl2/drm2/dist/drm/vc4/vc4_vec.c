@@ -622,7 +622,6 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	drm_dev_unregister(vc4->dev);
 	error = -drm_mode_create_tv_properties(sc->sc_drm_dev, 
 		ARRAY_SIZE(tv_mode_names), tv_mode_names);
 	if (error) {
@@ -639,7 +638,6 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		drm_encoder_cleanup(vec->encoder);
 		return;
 	}
-	drm_dev_register(vc4->dev, 0);
 	aprint_naive("\n");
 	aprint_normal(": VEC\n");
 }

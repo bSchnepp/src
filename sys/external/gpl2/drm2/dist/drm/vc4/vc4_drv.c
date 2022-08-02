@@ -286,15 +286,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	if (error < 0)
 		goto unbind_all;
 
-	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(vc4->dev, 0);
-	if (error < 0) {
-		aprint_error_dev(self, "unable to register drm: %d\n", error);
-		return;
-	}
-
-	drm_fbdev_generic_setup(vc4->dev, 16);
-
 	aprint_naive("\n");
 	aprint_normal(": VC4 Core\n");
 	return;

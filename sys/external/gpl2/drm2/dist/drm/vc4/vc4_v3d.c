@@ -13,6 +13,8 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #ifdef __NetBSD__
 #include <dev/fdt/fdtvar.h>
 #include <arch/evbarm/rpi/vcprop.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #endif
 
 #include <linux/clk.h>
@@ -525,6 +527,16 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 
 	aprint_naive("\n");
 	aprint_normal(": GPU\n");
+
+	/* XXX errno Linux->NetBSD */
+	error = -drm_dev_register(vc4->dev, 0);
+	if (error < 0) {
+		aprint_error_dev(self, "unable to register drm: %d\n", error);
+		return;
+	}
+
+	drm_fbdev_generic_setup(vc4->dev, 16);
+
 }
 
 #else

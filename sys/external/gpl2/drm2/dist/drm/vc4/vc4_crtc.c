@@ -1285,7 +1285,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	vc4_crtc->data = &pvalve_data[dev];
 	
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
-	drm_dev_unregister(vc4->dev);
 	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
 
@@ -1340,7 +1339,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		vc4_crtc->lut_g[i] = i;
 		vc4_crtc->lut_b[i] = i;
 	}
-	drm_dev_register(vc4->dev, 0);
 	aprint_naive("\n");
 	aprint_normal(": CRTC (%d)\n", dev);
 	return;
