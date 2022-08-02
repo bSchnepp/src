@@ -613,15 +613,6 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	vec->clock = fdtbus_clock_get_index(phandle, 0);
-	if (vec->clock == NULL) {
-		error = PTR_ERR(vec->clock);
-		if (error != -EPROBE_DEFER) {
-			aprint_error(": couldn't get clock");
-		}
-		return;
-	}
-
 	error = -drm_mode_create_tv_properties(sc->sc_drm_dev, 
 		ARRAY_SIZE(tv_mode_names), tv_mode_names);
 	if (error) {
@@ -629,11 +620,17 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	vec->clock = fdtbus_clock_get_index(phandle, 0);
+	if (vec->clock == NULL) {
+		aprint_error(": couldn't get clock");
+		return;
+	}
+
 	drm_encoder_init(sc->sc_drm_dev, vec->encoder, &vc4_vec_encoder_funcs,
 			 DRM_MODE_ENCODER_TVDAC, NULL);
 	drm_encoder_helper_add(vec->encoder, &vc4_vec_encoder_helper_funcs);
 	vec->connector = vc4_vec_connector_init(sc->sc_drm_dev, vec);
-	if (IS_ERR(vec->connector)) {
+	if (vec->connector == NULL) {
 		aprint_error(": couldn't setup connector");
 		drm_encoder_cleanup(vec->encoder);
 		return;

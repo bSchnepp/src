@@ -181,11 +181,7 @@ vc4_v3d_pm_put(struct vc4_dev *vc4)
 
 static void vc4_v3d_init_hw(struct drm_device *dev)
 {
-#if __NetBSD__
-	extern struct vc4_dev *vc4;
-#else
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-#endif
 
 	/* Take all the memory that would have been reserved for user
 	 * QPU programs, since we don't have an interface for running
@@ -279,7 +275,12 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 
 		if (IS_ERR(bo)) {
 			ret = PTR_ERR(bo);
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+			aprint_error(":Failed to allocate memory for tile" 
+				"binning: %d. You may need to enable CMA or "
+				"give it more memory.",
+				ret);
+#else
 			dev_err(&v3d->pdev->dev,
 				"Failed to allocate memory for tile binning: "
 				"%d. You may need to enable CMA or give it "
@@ -496,7 +497,7 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 	sc->sc_v3d.pdev = NULL;
 
 	/* May be okay without a clock. Reference Linux driver. */
-	vc4->v3d->clk = fdtbus_clock_get(phandle, "v3d");
+	vc4->v3d->clk = fdtbus_clock_get_index(phandle, 0);
 	if (vc4->v3d->clk == NULL) {
 		aprint_error(": failed to obtain VC4 V3D clock\n");
 		return;
