@@ -1568,6 +1568,7 @@ static int vc4dsi_match(device_t, cfdata_t, void *);
 static void vc4dsi_attach(device_t, device_t, void *);
 
 static const struct device_compatible_entry compat_data[] = {
+	{ .compat = "brcm,bcm2835-dsi0" },
 	{ .compat = "brcm,bcm2835-dsi1" },
 	DEVICE_COMPAT_EOL
 };
@@ -1603,12 +1604,15 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4dsi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
+	const char *name;
 
 	struct vc4_dsi * dsi = &sc->sc_dsi;
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
+	int port;
+	int i;
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = vc4->dev;
@@ -1620,8 +1624,13 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_phandle = faa->faa_phandle;
 
-	/* TODO: Set dsi->port based on the values from the dtb */
-	sc->sc_dsi.port = 1;
+	name = faa->faa_name;
+	port = 0;
+	for (i = 0; i < strnlen(name, 50); i++) {			
+		if (name[i] == '1')
+			port = 1;
+	}
+	sc->sc_dsi.port = port;
 
 	INIT_LIST_HEAD(&dsi->bridge_chain);
 	sc->sc_encoder.base.type = VC4_ENCODER_TYPE_DSI1;

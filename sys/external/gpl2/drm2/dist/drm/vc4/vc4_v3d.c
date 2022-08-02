@@ -147,7 +147,11 @@ vc4_v3d_pm_get(struct vc4_dev *vc4)
 {
 	mutex_lock(&vc4->power_lock);		
 	if (vc4->power_refcount++ == 0) {
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+		vc4->power_refcount--;
+		mutex_unlock(&vc4->power_lock);
+		return 0;
+#else
 		int ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
 
 		if (ret < 0) {
