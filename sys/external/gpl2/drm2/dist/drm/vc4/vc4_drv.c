@@ -27,6 +27,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef __NetBSD__
 #include <dev/fdt/fdtvar.h>
+#include <drm/drm_irq.h>
 #endif
 
 #include <linux/clk.h>
@@ -279,7 +280,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	drm_mode_config_init(vc4->dev);
 	vc4_gem_init(vc4->dev);
 
-	/* crtc should be the last driver to load, so this is safe. */
+	/* v3d should be the last driver to load, so this is safe. */
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
 	error = vc4_kms_load(vc4->dev);

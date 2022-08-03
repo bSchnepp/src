@@ -496,6 +496,9 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 	sc->sc_v3d.vc4 = vc4;
 	sc->sc_v3d.pdev = NULL;
 
+	/* Enable power here, for now. */
+	rpi_set_domain(VCPROP_DOMAIN_V3D, 1);
+
 	/* May be okay without a clock. Reference Linux driver. */
 	vc4->v3d->clk = fdtbus_clock_get_index(phandle, 0);
 	if (vc4->v3d->clk == NULL) {
@@ -503,8 +506,9 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	/* Enable power here, for now. */
-	rpi_set_domain(VCPROP_DOMAIN_V3D, 1);
+	error = clk_enable(vc4->v3d->clk);
+	if (error != 0)
+		return;
 
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
 		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
@@ -512,26 +516,12 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	error = clk_enable(vc4->v3d->clk);
-	if (error != 0)
-		return;
-
 	/* Reset bin registers, to make sure old objects don't get used again. 
 	 */
 	V3D_WRITE(V3D_BPOA, 0);
 	V3D_WRITE(V3D_BPOS, 0);	
 
 	vc4_v3d_init_hw(sc->sc_drm_dev);
-
-	error = -drm_irq_install(sc->sc_drm_dev);
-	if (error) {
-		aprint_error_dev(self, "cannot set up v3d irq: %d\n", 
-			error);
-		return;	
-	}
-
-	aprint_naive("\n");
-	aprint_normal(": GPU\n");
 
 	/* XXX errno Linux->NetBSD */
 	error = -drm_dev_register(vc4->dev, 0);
@@ -542,6 +532,17 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 
 	drm_fbdev_generic_setup(vc4->dev, 16);
 
+
+	error = -drm_irq_install(sc->sc_drm_dev);
+	if (error) {
+		aprint_error_dev(self, "cannot set up v3d irq: %d\n", 
+			error);
+		return;	
+	}
+
+	aprint_naive("\n");
+	aprint_normal(": GPU\n");
+	return;
 }
 
 #else
