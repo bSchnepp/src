@@ -33,6 +33,7 @@
 #define	_DRM_DRM_WRITEBACK_H_
 
 #include <drm/drm_connector.h>
+#include <drm/drm_modeset_helper_vtables.h>
 
 struct dma_fence;
 struct drm_connector;
@@ -58,4 +59,9 @@ void	drm_writeback_cleanup_job(struct drm_writeback_job *);
 int	drm_writeback_set_fb(struct drm_connector_state *,
 	    struct drm_framebuffer *);
 
+int	drm_writeback_connector_init(struct drm_device *,
+	    struct drm_writeback_connector *,
+	    const struct drm_connector_funcs *,
+	    const struct drm_encoder_helper_funcs *,
+	    const u_int *, int);
 #endif	/* _DRM_DRM_WRITEBACK_H_ */

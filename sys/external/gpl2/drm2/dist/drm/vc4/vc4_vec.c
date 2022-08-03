@@ -341,7 +341,7 @@ static int vc4_vec_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_connector_state *state = connector->state;
 	struct drm_display_mode *mode;
-
+	
 	mode = drm_mode_duplicate(connector->dev,
 				  vc4_vec_tv_modes[state->tv.mode].mode);
 	if (!mode) {

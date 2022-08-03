@@ -175,12 +175,14 @@ struct vc4_txp {
 #endif
 };
 
-#ifndef __NetBSD__
 static inline struct vc4_txp *encoder_to_vc4_txp(struct drm_encoder *encoder)
 {
+#ifdef notyet
 	return container_of(encoder, struct vc4_txp, connector.encoder);
-}
+#else
+	return NULL;
 #endif
+}
 
 static inline struct vc4_txp *connector_to_vc4_txp(struct drm_connector *conn)
 {
@@ -344,7 +346,6 @@ static const struct drm_connector_helper_funcs vc4_txp_connector_helper_funcs = 
 	.atomic_commit = vc4_txp_connector_atomic_commit,
 };
 
-#ifndef __NetBSD__
 static enum drm_connector_status
 vc4_txp_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -388,7 +389,6 @@ static void vc4_txp_encoder_disable(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs vc4_txp_encoder_helper_funcs = {
 	.disable = vc4_txp_encoder_disable,
 };
-#endif
 
 #ifdef __NetBSD__
 static irqreturn_t vc4_txp_interrupt(void *data)
@@ -468,12 +468,11 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
 	sc->sc_phandle = faa->faa_phandle;	
 	drm_connector_helper_add(&sc->sc_txp.connector.base,
 				 &vc4_txp_connector_helper_funcs);
-#ifdef notyet
-	error = drm_writeback_connector_init(drm, &txp->connector,
+	error = drm_writeback_connector_init(sc->sc_drm_dev, 
+					   &sc->sc_txp.connector,
 					   &vc4_txp_connector_funcs,
 					   &vc4_txp_encoder_helper_funcs,
 					   drm_fmts, ARRAY_SIZE(drm_fmts));
-#endif
 
 	sc->sc_ih = fdtbus_intr_establish(phandle, 0, IPL_VM, IST_LEVEL,
 			       vc4_txp_interrupt, &sc->sc_txp);

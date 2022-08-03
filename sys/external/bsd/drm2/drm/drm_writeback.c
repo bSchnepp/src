@@ -65,3 +65,13 @@ drm_writeback_set_fb(struct drm_connector_state *state,
 	panic("writeback connectors not implemented");
 	return -ENXIO;
 }
+
+int 
+drm_writeback_connector_init(struct drm_device *dev,
+    struct drm_writeback_connector *conn,
+    const struct drm_connector_funcs *conn_funcs,
+    const struct drm_encoder_helper_funcs *encoder_helper_funcs,
+    const u_int *formats, int n_formats)
+{
+	return -ENXIO;
+}
