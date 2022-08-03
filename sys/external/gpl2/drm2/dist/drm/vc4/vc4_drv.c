@@ -201,6 +201,19 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 };
 
 #if __NetBSD__
+
+int
+vc4_request_irq(struct drm_device *dev, int flags)
+{
+	return 0;
+}
+
+void
+vc4_free_irq(struct drm_device *dev)
+{
+}
+
+
 static int vc4_match(device_t, cfdata_t, void *);
 static void vc4_attach(device_t, device_t, void *);
 
@@ -280,19 +293,9 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	drm_mode_config_init(vc4->dev);
 	vc4_gem_init(vc4->dev);
 
-	/* v3d should be the last driver to load, so this is safe. */
-	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
-
-	error = vc4_kms_load(vc4->dev);
-	if (error < 0)
-		goto unbind_all;
-
 	aprint_naive("\n");
 	aprint_normal(": VC4 Core\n");
 	return;
-unbind_all:
-	vc4_gem_destroy(sc->sc_drm_dev);
-	vc4_bo_cache_destroy(sc->sc_drm_dev);
 dev_put:
 	drm_dev_put(sc->sc_drm_dev);
 	return;
@@ -323,6 +326,9 @@ static struct drm_driver vc4_drm_driver = {
 	.gem_free_object_unlocked = vc4_free_object,
 #ifdef __NetBSD__
 	.gem_uvm_ops = &vc4_vm_ops,
+
+	.request_irq = vc4_request_irq,
+	.free_irq = vc4_free_irq,
 #else
 	.gem_vm_ops = &vc4_vm_ops,
 #endif
