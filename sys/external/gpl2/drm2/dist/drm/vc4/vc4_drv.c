@@ -202,33 +202,6 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 
 #if __NetBSD__
 
-struct drm_bus_irq_cookie
-{
-	void *intr_handles;
-	void *ih_cookie;
-};
-
-int
-vc4_request_irq(struct drm_device *dev, int flags)
-{
-	const char *const name = device_xname(dev->dev);
-	struct drm_bus_irq_cookie *irq_cookie;
-	const char *intrstr = "vc4";
-
-	irq_cookie = kmem_alloc(sizeof(*irq_cookie), KM_SLEEP);	
-	aprint_normal_dev(dev->dev, "interrupting at %s (%s)\n", intrstr, name);
-	dev->irq_cookie = irq_cookie;
-	return 0;
-}
-
-void
-vc4_free_irq(struct drm_device *dev)
-{
-	struct drm_bus_irq_cookie *const cookie = dev->irq_cookie;
-	kmem_free(cookie, sizeof(*cookie));
-	dev->irq_cookie = NULL;
-}
-
 static int vc4_match(device_t, cfdata_t, void *);
 static void vc4_attach(device_t, device_t, void *);
 
@@ -311,9 +284,17 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	/* v3d should be the last driver to load, so this is safe. */
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
+	error = vc4_kms_load(vc4->dev);
+	if (error < 0)
+		goto unbind_all;
+
 	aprint_naive("\n");
 	aprint_normal(": VC4 Core\n");
 	return;
+
+unbind_all:
+	vc4_gem_destroy(sc->sc_drm_dev);
+	vc4_bo_cache_destroy(sc->sc_drm_dev);
 dev_put:
 	drm_dev_put(sc->sc_drm_dev);
 	return;
@@ -344,9 +325,6 @@ static struct drm_driver vc4_drm_driver = {
 	.gem_free_object_unlocked = vc4_free_object,
 #ifdef __NetBSD__
 	.gem_uvm_ops = &vc4_vm_ops,
-
-	.request_irq = vc4_request_irq,
-	.free_irq = vc4_free_irq,
 #else
 	.gem_vm_ops = &vc4_vm_ops,
 #endif

@@ -883,8 +883,6 @@ extern struct platform_driver vc4_txp_driver;
 /* vc4_irq.c */
 #ifdef __NetBSD__
 irqreturn_t vc4_irq(void *arg);
-int vc4_request_irq(struct drm_device *dev, int flags);
-void vc4_free_irq(struct drm_device *dev);
 #else
 irqreturn_t vc4_irq(int irq, void *arg);
 #endif
