@@ -523,12 +523,8 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 
 	vc4_v3d_init_hw(sc->sc_drm_dev);
 
-	error = -drm_irq_install(sc->sc_drm_dev);
-	if (error) {
-		aprint_error_dev(self, "cannot set up v3d irq: %d\n", 
-			error);
-		return;	
-	}
+	sc->sc_ih = fdtbus_intr_establish(phandle, 0, IPL_VM, IST_LEVEL,
+			       vc4_irq, &sc->sc_v3d);
 
 	error = vc4_kms_load(vc4->dev);
 	if (error < 0)

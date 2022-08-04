@@ -211,9 +211,12 @@ struct drm_bus_irq_cookie
 int
 vc4_request_irq(struct drm_device *dev, int flags)
 {
+	const char *const name = device_xname(dev->dev);
 	struct drm_bus_irq_cookie *irq_cookie;
+	const char *intrstr = "vc4";
 
 	irq_cookie = kmem_alloc(sizeof(*irq_cookie), KM_SLEEP);	
+	aprint_normal_dev(dev->dev, "interrupting at %s (%s)\n", intrstr, name);
 	dev->irq_cookie = irq_cookie;
 	return 0;
 }
@@ -225,7 +228,6 @@ vc4_free_irq(struct drm_device *dev)
 	kmem_free(cookie, sizeof(*cookie));
 	dev->irq_cookie = NULL;
 }
-
 
 static int vc4_match(device_t, cfdata_t, void *);
 static void vc4_attach(device_t, device_t, void *);
