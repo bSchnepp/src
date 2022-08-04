@@ -1044,7 +1044,11 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	 * needs to refill with pixels.
 	 */
 #ifdef __NetBSD__
-	error = bus_space_subregion(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, vc4_state->ptr0_offset * sizeof(uint32_t), sizeof(addr), &hw_dlist_space);
+	error = bus_space_subregion(vc4_state->hw_dlist_bst, 
+		vc4_state->hw_dlist_bsh, 
+		vc4_state->ptr0_offset * sizeof(uint32_t), sizeof(addr), 
+		&hw_dlist_space);
+
 	if (error) {
 		/* Should never occur. */
 		return;
@@ -1314,12 +1318,9 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				       &vc4_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
 				       modifiers, type, NULL);
-#if __NetBSD__
 	if (ret) {
-		/* This variable seems to be unused by Linux? */
 		return ERR_PTR(ret);
 	}
-#endif
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
