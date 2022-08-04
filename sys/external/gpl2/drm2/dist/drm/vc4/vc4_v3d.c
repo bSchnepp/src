@@ -530,9 +530,6 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 		return;	
 	}
 
-	/* v3d should be the last driver to load, so this is safe. */
-	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
-
 	error = vc4_kms_load(vc4->dev);
 	if (error < 0)
 		goto unbind_all;

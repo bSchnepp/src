@@ -202,15 +202,28 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 
 #if __NetBSD__
 
+struct drm_bus_irq_cookie
+{
+	void *intr_handles;
+	void *ih_cookie;
+};
+
 int
 vc4_request_irq(struct drm_device *dev, int flags)
 {
+	struct drm_bus_irq_cookie *irq_cookie;
+
+	irq_cookie = kmem_alloc(sizeof(*irq_cookie), KM_SLEEP);	
+	dev->irq_cookie = irq_cookie;
 	return 0;
 }
 
 void
 vc4_free_irq(struct drm_device *dev)
 {
+	struct drm_bus_irq_cookie *const cookie = dev->irq_cookie;
+	kmem_free(cookie, sizeof(*cookie));
+	dev->irq_cookie = NULL;
 }
 
 
@@ -292,6 +305,9 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	drm_mode_config_init(vc4->dev);
 	vc4_gem_init(vc4->dev);
+
+	/* v3d should be the last driver to load, so this is safe. */
+	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
 	aprint_naive("\n");
 	aprint_normal(": VC4 Core\n");
