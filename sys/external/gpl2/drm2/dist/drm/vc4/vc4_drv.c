@@ -315,6 +315,7 @@ static struct drm_driver vc4_drm_driver = {
 	.gem_free_object_unlocked = vc4_free_object,
 #ifdef __NetBSD__
 	.gem_uvm_ops = &vc4_vm_ops,
+	.mmap_object = vc4_mmap_object,
 #else
 	.gem_vm_ops = &vc4_vm_ops,
 #endif
@@ -334,8 +335,6 @@ static struct drm_driver vc4_drm_driver = {
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
 #ifdef __NetBSD__
 	.fops = NULL,
-	.mmap_object	    = vc4_mmap_object,
-	.gem_uvm_ops	    = &drm_gem_cma_uvm_ops,
 #else
 	.fops = &vc4_drm_fops,
 #endif
