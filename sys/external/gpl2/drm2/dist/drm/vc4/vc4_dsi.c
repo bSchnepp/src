@@ -1604,7 +1604,7 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4dsi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	const char *name;
+	char name[50];
 
 	struct vc4_dsi * dsi = &sc->sc_dsi;
 	const int phandle = faa->faa_phandle;
@@ -1612,7 +1612,7 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	bus_size_t size;
 	int error;
 	int port;
-	int i;
+	int proplen;
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = vc4->dev;
@@ -1624,12 +1624,17 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_phandle = faa->faa_phandle;
 
-	name = faa->faa_name;
-	port = 0;
-	for (i = 0; i < strnlen(name, 50); i++) {			
-		if (name[i] == '1')
-			port = 1;
+	proplen = OF_getproplen(phandle, "compatible");
+	if (proplen > 50) {
+		aprint_error(": failed lookup of dsi port\n");
 	}
+	OF_getprop(phandle, "compatible", name, proplen);
+
+	port = 0;
+
+	/* Not sure why -2, but this needs to be the case here. */		
+	if (name[proplen-2] == '1')
+		port = 1;
 	sc->sc_dsi.port = port;
 
 	INIT_LIST_HEAD(&dsi->bridge_chain);

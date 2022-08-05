@@ -1229,7 +1229,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	struct vc4_crtc *vc4_crtc = &sc->sc_crtc;
 
 	struct drm_crtc *crtc;
-	const char *name;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -1237,6 +1236,9 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	int error;
 	int dev;
 	int i;
+
+	int proplen;
+	char name[50];
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = vc4->dev;
@@ -1275,14 +1277,18 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
 
-	name = faa->faa_name;
-	dev = 0;
-	for (i = 0; i < strnlen(name, 50); i++) {			
-		if (name[i] == '1')
-			dev = 1;
-		if (name[i] == '2')
-			dev = 2;
+	proplen = OF_getproplen(phandle, "compatible");
+	if (proplen > 50) {
+		aprint_error(": failed lookup of crtc data\n");
 	}
+
+	OF_getprop(phandle, "compatible", name, proplen);
+	dev = 0;
+	/* Not sure why -2, but this needs to be the case here. */
+	if (name[proplen-2] == '1')
+			dev = 1;
+	else if (name[proplen-2] == '2')
+			dev = 2;
 	vc4_crtc->data = &pvalve_data[dev];
 	
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
