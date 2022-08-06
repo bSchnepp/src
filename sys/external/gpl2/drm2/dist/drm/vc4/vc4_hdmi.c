@@ -1359,7 +1359,8 @@ struct vc4hdmi_softc {
 	int			sc_phandle;
 	struct vc4_hdmi		sc_hdmi;
 	struct vc4_hdmi_encoder	sc_encoder;
-	void			*sc_ih;	
+	void			*sc_ih;
+	i2c_tag_t 		sc_ddc;	
 };
 
 CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
@@ -1381,11 +1382,14 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	struct vc4hdmi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
 	struct vc4_hdmi *hdmi;
+	struct device_node *ddc_node;
 
 	const int phandle = faa->faa_phandle;
+	int ddc_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
+	int len;
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = vc4->dev;
@@ -1424,19 +1428,38 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		return;	
 	}
 
+	hdmi = &sc->sc_hdmi;
+	vc4->hdmi = hdmi;
+
 	/* Get DDC node */
+	ddc_phandle = fdtbus_get_phandle(phandle, "brcm,bcm2835-i2c");
+	if (ddc_phandle) {
+		ddc_node = fdtbus_get_prop(phandle, "ddc", &len);
+		if (ddc_node == NULL) {
+			aprint_error_dev(self, "Cannot find ddc in device tree: %d\n", 
+				ENODEV);
+			return;
+		}
+
+		sc->sc_ddc = fdtbus_i2c_acquire(phandle, "ddc");
+	}
+
+	if (hdmi->ddc == NULL) {
+		aprint_error_dev(self, "Cannot acquire ddc i2c adapter: %d\n", 
+			ENODEV);
+		return;		
+	}
+
 
 	/* This is the rate that is set by the firmware.  The number
 	 * needs to be a bit higher than the pixel clock rate
 	 * (generally 148.5Mhz).
 	 */
 	error = clk_set_rate(sc->sc_hdmi.hsm_clock, HSM_CLOCK_FREQ);
-#ifdef notyet
 	if (error) {
 		DRM_ERROR("Failed to set HSM clock rate: %d\n", error);
 		goto err_put_i2c;
 	}
-#endif
 
 	error = clk_enable(sc->sc_hdmi.hsm_clock);
 	if (error) {
@@ -1444,15 +1467,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 			  error);
 		goto err_put_i2c;
 	}
-	
-	hdmi = &sc->sc_hdmi;
-	vc4->hdmi = hdmi;
-
-	/** XXX FIXME: Mapping isn't quite right yet. 
-	 * Until this is corrected, skip over all the MMIO and connection
-	 * code. 
-	 */
-	goto end;
 
 	/* HDMI core must be enabled. */
 	if (!(HD_READ(VC4_HD_M_CTL) & VC4_HD_M_ENABLE)) {
@@ -1474,7 +1488,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		goto err_destroy_encoder;
 	}
 
-end:
 	aprint_naive("\n");
 	aprint_normal(": HDMI\n");
 	return;
