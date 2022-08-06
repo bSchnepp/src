@@ -1382,7 +1382,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	struct vc4hdmi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
 	struct vc4_hdmi *hdmi;
-	struct device_node *ddc_node;
 
 	const int phandle = faa->faa_phandle;
 	int ddc_phandle;
@@ -1434,14 +1433,14 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	/* Get DDC node */
 	ddc_phandle = fdtbus_get_phandle(phandle, "brcm,bcm2835-i2c");
 	if (ddc_phandle) {
-		ddc_node = fdtbus_get_prop(phandle, "ddc", &len);
-		if (ddc_node == NULL) {
+		hdmi->ddc = fdtbus_get_prop(phandle, "ddc", &len);
+		if (hdmi->ddc == NULL) {
 			aprint_error_dev(self, "Cannot find ddc in device tree: %d\n", 
 				ENODEV);
 			return;
 		}
 
-		sc->sc_ddc = fdtbus_i2c_acquire(phandle, "ddc");
+		sc->sc_ddc = fdtbus_i2c_get_tag(phandle);
 	}
 
 	if (hdmi->ddc == NULL) {
@@ -1450,6 +1449,12 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		return;		
 	}
 
+	error = clk_enable(sc->sc_hdmi.hsm_clock);
+	if (error) {
+		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
+			  error);
+		goto err_put_i2c;
+	}
 
 	/* This is the rate that is set by the firmware.  The number
 	 * needs to be a bit higher than the pixel clock rate
@@ -1458,13 +1463,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	error = clk_set_rate(sc->sc_hdmi.hsm_clock, HSM_CLOCK_FREQ);
 	if (error) {
 		DRM_ERROR("Failed to set HSM clock rate: %d\n", error);
-		goto err_put_i2c;
-	}
-
-	error = clk_enable(sc->sc_hdmi.hsm_clock);
-	if (error) {
-		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
-			  error);
 		goto err_put_i2c;
 	}
 
