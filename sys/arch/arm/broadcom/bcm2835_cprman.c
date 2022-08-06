@@ -164,10 +164,17 @@ cprman_get_rate(void *priv, struct clk *baseclk)
 	}
 }
 
+static int 
+cprman_set_rate(void *priv, struct clk *baseclk, u_int freq)
+{
+	return 0;
+}
+
 static const struct clk_funcs cprman_clk_funcs = {
 	.get = cprman_get,
 	.put = cprman_put,
 	.get_rate = cprman_get_rate,
+	.set_rate = cprman_set_rate,
 };
 
 static void
@@ -214,7 +221,7 @@ cprman_attach(device_t parent, device_t self, void *aux)
 
 	cprman_add_clock(sc, CPRMAN_CLOCK_UART, "uart");
 	cprman_add_clock(sc, CPRMAN_CLOCK_VPU, "vpu");
-	cprman_add_clock(sc, CPRMAN_CLOCK_HSM, "hsm");
+	cprman_add_clock(sc, CPRMAN_CLOCK_HSM, "hdmi");
 	cprman_add_clock(sc, CPRMAN_CLOCK_VEC, "vec");
 	cprman_add_clock(sc, CPRMAN_CLOCK_V3D, "v3d");
 	cprman_add_clock(sc, CPRMAN_CLOCK_EMMC, "emmc");
