@@ -39,6 +39,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #ifdef __NetBSD__
 #include <dev/fdt/fdtvar.h>
 #include <linux/rational.h>
+#include <arch/evbarm/rpi/vcprop.h>
 #endif
 
 #include <drm/drm_atomic_helper.h>
@@ -557,7 +558,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 		return;
 	}
 
-	ret = clk_prepare_enable(hdmi->pixel_clock);
+	ret = clk_enable(hdmi->pixel_clock);
 	if (ret) {
 		DRM_ERROR("Failed to turn on pixel clock: %d\n", ret);
 		return;
@@ -1414,6 +1415,8 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}	
 
+	rpi_set_domain(VCPROP_DOMAIN_HDMI, true);
+
 	sc->sc_hdmi.pixel_clock = fdtbus_clock_get(sc->sc_phandle, "pixel");
 	if (IS_ERR(sc->sc_hdmi.pixel_clock)) {
 		aprint_error_dev(self, "couldn't get pixel clock: %d\n", 
@@ -1429,6 +1432,14 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	hdmi = &sc->sc_hdmi;
 	vc4->hdmi = hdmi;
+
+	error = clk_enable(sc->sc_hdmi.hsm_clock);
+	if (error) {
+		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
+			  error);
+		goto err_put_i2c;
+	}
+
 
 	/* Get DDC node */
 	ddc_phandle = fdtbus_get_phandle(phandle, "brcm,bcm2835-i2c");
@@ -1447,13 +1458,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		aprint_error_dev(self, "Cannot acquire ddc i2c adapter: %d\n", 
 			ENODEV);
 		return;		
-	}
-
-	error = clk_enable(sc->sc_hdmi.hsm_clock);
-	if (error) {
-		DRM_ERROR("Failed to turn on HDMI state machine clock: %d\n",
-			  error);
-		goto err_put_i2c;
 	}
 
 	/* This is the rate that is set by the firmware.  The number
@@ -1493,7 +1497,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 err_destroy_encoder:
 	vc4_hdmi_encoder_destroy(sc->sc_hdmi.encoder);
-	clk_disable_unprepare(sc->sc_hdmi.hsm_clock);
+	clk_disable(sc->sc_hdmi.hsm_clock);
 err_put_i2c:
 	return;
 }

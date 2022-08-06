@@ -497,7 +497,7 @@ vc4v3d_attach(device_t parent, device_t self, void *aux)
 	sc->sc_v3d.pdev = NULL;
 
 	/* Enable power here, for now. */
-	rpi_set_domain(VCPROP_DOMAIN_V3D, 1);
+	rpi_set_domain(VCPROP_DOMAIN_V3D, true);
 
 	/* May be okay without a clock. Reference Linux driver. */
 	vc4->v3d->clk = fdtbus_clock_get_index(phandle, 0);
