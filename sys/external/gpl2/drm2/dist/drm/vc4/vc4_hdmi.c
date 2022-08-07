@@ -1431,6 +1431,8 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	}
 
 	hdmi = &sc->sc_hdmi;
+	hdmi->hdmicore_bst = faa->faa_bst;
+	hdmi->hd_bst = faa->faa_bst;
 	vc4->hdmi = hdmi;
 
 	error = clk_enable(sc->sc_hdmi.hsm_clock);
