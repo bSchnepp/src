@@ -1434,6 +1434,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	hdmi->hdmicore_bst = faa->faa_bst;
 	hdmi->hd_bst = faa->faa_bst;
 	vc4->hdmi = hdmi;
+	hdmi->encoder = &sc->sc_encoder.base.base;
 
 	error = clk_enable(sc->sc_hdmi.hsm_clock);
 	if (error) {
@@ -1487,7 +1488,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_hdmi.connector =
 		vc4_hdmi_connector_init(sc->sc_drm_dev, sc->sc_hdmi.encoder, sc->sc_hdmi.ddc);
-	if (IS_ERR(sc->sc_hdmi.connector)) {
+	if (sc->sc_hdmi.connector == NULL) {
 		error = PTR_ERR(sc->sc_hdmi.connector);
 		goto err_destroy_encoder;
 	}
