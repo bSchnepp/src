@@ -1448,6 +1448,8 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	ddc_phandle = fdtbus_get_phandle(phandle, "brcm,bcm2835-i2c");
 	if (ddc_phandle) {
 		hdmi->ddc = &sc->sc_ddc;
+		hdmi->ddc->dev.parent = self;
+		memcpy(&hdmi->ddc->name, "vc4 hdmi", 8); /* Does this matter? */
 		if (hdmi->ddc == NULL) {
 			aprint_error_dev(self, 
 				"Cannot find ddc in device tree: %d\n", ENODEV);
