@@ -1384,8 +1384,8 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	struct fdt_attach_args * const faa = aux;
 	struct vc4_hdmi *hdmi;
 
+	const char * dcc_name = "brcm,bcm2835-i2c";
 	const int phandle = faa->faa_phandle;
-	int ddc_phandle;
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
@@ -1444,17 +1444,17 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	}
 
 
-	/* Get DDC node */
-	ddc_phandle = fdtbus_get_phandle(phandle, "brcm,bcm2835-i2c");
-	if (ddc_phandle) {
-		hdmi->ddc = &sc->sc_ddc;
-		hdmi->ddc->dev.parent = self;
-		memcpy(&hdmi->ddc->name, "vc4 hdmi", 8); /* Does this matter? */
-		if (hdmi->ddc == NULL) {
-			aprint_error_dev(self, 
-				"Cannot find ddc in device tree: %d\n", ENODEV);
-			return;
-		}
+	/* Get DDC node: 
+	 * it is always guaranteed to be the brcm,bcm2835-i2c device. */
+	hdmi->ddc = &sc->sc_ddc;
+	hdmi->ddc->dev.parent = self;
+
+	/* Does this matter? */
+	memcpy(&hdmi->ddc->name, dcc_name, strlen(dcc_name)); 
+	if (hdmi->ddc == NULL) {
+		aprint_error_dev(self, 
+			"Cannot find ddc in device tree: %d\n", ENODEV);
+		return;
 	}
 
 	if (hdmi->ddc == NULL) {
