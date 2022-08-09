@@ -1361,7 +1361,7 @@ struct vc4hdmi_softc {
 	struct vc4_hdmi		sc_hdmi;
 	struct vc4_hdmi_encoder	sc_encoder;
 	void			*sc_ih;
-	i2c_tag_t 		sc_ddc;	
+	struct i2c_adapter 	sc_ddc;
 };
 
 CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
@@ -1389,7 +1389,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
-	int len;
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = vc4->dev;
@@ -1401,7 +1400,8 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_phandle = faa->faa_phandle;
 	sc->sc_hdmi.pdev = NULL;
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_hdmi.hdmicore_bsh);
+	error = bus_space_map(faa->faa_bst, addr, size, 0, 
+		&sc->sc_hdmi.hdmicore_bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
@@ -1447,14 +1447,12 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	/* Get DDC node */
 	ddc_phandle = fdtbus_get_phandle(phandle, "brcm,bcm2835-i2c");
 	if (ddc_phandle) {
-		hdmi->ddc = fdtbus_get_prop(phandle, "ddc", &len);
+		hdmi->ddc = &sc->sc_ddc;
 		if (hdmi->ddc == NULL) {
-			aprint_error_dev(self, "Cannot find ddc in device tree: %d\n", 
-				ENODEV);
+			aprint_error_dev(self, 
+				"Cannot find ddc in device tree: %d\n", ENODEV);
 			return;
 		}
-
-		sc->sc_ddc = fdtbus_i2c_get_tag(phandle);
 	}
 
 	if (hdmi->ddc == NULL) {
@@ -1482,12 +1480,15 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		HD_WRITE(VC4_HD_M_CTL, VC4_HD_M_ENABLE);
 	}
 
-	drm_encoder_init(sc->sc_drm_dev, sc->sc_hdmi.encoder, &vc4_hdmi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
-	drm_encoder_helper_add(sc->sc_hdmi.encoder, &vc4_hdmi_encoder_helper_funcs);
+	drm_encoder_init(sc->sc_drm_dev, sc->sc_hdmi.encoder, 
+		&vc4_hdmi_encoder_funcs, DRM_MODE_ENCODER_TMDS, NULL);
+	drm_encoder_helper_add(sc->sc_hdmi.encoder, 
+		&vc4_hdmi_encoder_helper_funcs);
 
 	sc->sc_hdmi.connector =
-		vc4_hdmi_connector_init(sc->sc_drm_dev, sc->sc_hdmi.encoder, sc->sc_hdmi.ddc);
+		vc4_hdmi_connector_init(sc->sc_drm_dev, sc->sc_hdmi.encoder, 
+			sc->sc_hdmi.ddc);
+
 	if (sc->sc_hdmi.connector == NULL) {
 		error = PTR_ERR(sc->sc_hdmi.connector);
 		goto err_destroy_encoder;
