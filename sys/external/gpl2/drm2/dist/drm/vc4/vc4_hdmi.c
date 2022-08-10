@@ -1397,6 +1397,23 @@ static const struct i2c_lock_operations vc4_i2c_lock_operations =
 	.unlock_bus = vc4_hdmi_i2c_unlock_bus
 };
 
+static int
+vc4_hdmi_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
+{
+	return 0;
+}
+
+static u32 vc4_hdmi_func(struct i2c_adapter *adapter)
+{
+	return 0;
+}
+
+static const struct i2c_algorithm vc4_hdmi_algorithm = 
+{
+	.master_xfer	= vc4_hdmi_xfer,
+	.functionality	= vc4_hdmi_func
+};
+
 static void
 vc4hdmi_attach(device_t parent, device_t self, void *aux)
 {
@@ -1453,8 +1470,9 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	hdmi = &sc->sc_hdmi;
 	hdmi->hdmicore_bst = faa->faa_bst;
 	hdmi->hd_bst = faa->faa_bst;
-	vc4->hdmi = hdmi;
 	hdmi->encoder = &sc->sc_encoder.base.base;
+
+	vc4->hdmi = hdmi;
 
 	error = clk_enable(sc->sc_hdmi.hsm_clock);
 	if (error) {
@@ -1470,8 +1488,12 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	sc->sc_ddc.lock_ops = &vc4_i2c_lock_operations;
 
 	ddc_node = fdtbus_i2c_acquire(phandle, "ddc");
-	memcpy(&sc->sc_ddc.name, ddc_node->ic_devname, strlen(ddc_node->ic_devname)); 
+	memcpy(&sc->sc_ddc.name, ddc_node->ic_devname, 
+		strlen(ddc_node->ic_devname)); 
 
+	sc->sc_ddc.owner = THIS_MODULE;
+	sc->sc_ddc.class = I2C_CLASS_DDC;
+	sc->sc_ddc.algo = &vc4_hdmi_algorithm;
 
 	i2c_add_adapter(&sc->sc_ddc);
 	hdmi->ddc = &sc->sc_ddc;
