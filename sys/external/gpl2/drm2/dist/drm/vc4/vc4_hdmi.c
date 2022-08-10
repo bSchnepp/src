@@ -1370,6 +1370,12 @@ CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
 /* XXX Kludge to get these from vc4_drv.c.  */
 extern struct vc4_dev *vc4;
 
+static inline struct vc4hdmi_softc *
+to_vc4_hdmi_softc(struct i2c_adapter *i2c)
+{
+	return container_of(i2c, struct vc4hdmi_softc, sc_ddc);
+}
+
 static int
 vc4hdmi_match(device_t parent, cfdata_t cfdata, void *aux)
 {
@@ -1380,19 +1386,27 @@ vc4hdmi_match(device_t parent, cfdata_t cfdata, void *aux)
 static void
 vc4_hdmi_i2c_lock_bus(struct i2c_adapter *adapter, unsigned i)
 {
-
+	struct vc4hdmi_softc *sc = to_vc4_hdmi_softc(adapter);
+	struct vc4_dev *dev_priv = sc->sc_drm_dev->dev_private;
+	mutex_lock(&dev_priv->power_lock); /* TODO: Find the correct lock */
 }
 
 static int
 vc4_hdmi_i2c_trylock_bus(struct i2c_adapter *adapter, unsigned i)
 {
-	return 0;
+	struct vc4hdmi_softc *sc = to_vc4_hdmi_softc(adapter);
+	struct vc4_dev *dev_priv = sc->sc_drm_dev->dev_private;
+
+	/* TODO: Find the correct lock */
+	return mutex_trylock(&dev_priv->power_lock);
 }
 
 static void
 vc4_hdmi_i2c_unlock_bus(struct i2c_adapter *adapter, unsigned i)
 {
-
+	struct vc4hdmi_softc *sc = to_vc4_hdmi_softc(adapter);
+	struct vc4_dev *dev_priv = sc->sc_drm_dev->dev_private;
+	mutex_unlock(&dev_priv->power_lock); /* TODO: Find the correct lock */
 }
 
 static const struct i2c_lock_operations vc4_i2c_lock_operations =
