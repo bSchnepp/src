@@ -1404,8 +1404,8 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	struct fdt_attach_args * const faa = aux;
 	struct vc4_hdmi *hdmi;
 
-	const char * dcc_name = "brcm,bcm2835-i2c";
 	const int phandle = faa->faa_phandle;
+	i2c_tag_t ddc_node;
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
@@ -1468,7 +1468,10 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	 * it is always guaranteed to be the brcm,bcm2835-i2c device. */;
 	/* Does this matter? */
 	sc->sc_ddc.lock_ops = &vc4_i2c_lock_operations;
-	memcpy(&sc->sc_ddc.name, dcc_name, strlen(dcc_name)); 
+
+	ddc_node = fdtbus_i2c_acquire(phandle, "ddc");
+	memcpy(&sc->sc_ddc.name, ddc_node->ic_devname, strlen(ddc_node->ic_devname)); 
+
 
 	i2c_add_adapter(&sc->sc_ddc);
 	hdmi->ddc = &sc->sc_ddc;
