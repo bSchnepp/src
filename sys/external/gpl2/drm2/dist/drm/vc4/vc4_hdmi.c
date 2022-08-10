@@ -1468,13 +1468,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	 * it is always guaranteed to be the brcm,bcm2835-i2c device. */;
 	/* Does this matter? */
 	sc->sc_ddc.lock_ops = &vc4_i2c_lock_operations;
-
-	memcpy(&hdmi->ddc->name, dcc_name, strlen(dcc_name)); 
-	if (hdmi->ddc == NULL) {
-		aprint_error_dev(self, 
-			"Cannot find ddc in device tree: %d\n", ENODEV);
-		return;
-	}
+	memcpy(&sc->sc_ddc.name, dcc_name, strlen(dcc_name)); 
 
 	i2c_add_adapter(&sc->sc_ddc);
 	hdmi->ddc = &sc->sc_ddc;
