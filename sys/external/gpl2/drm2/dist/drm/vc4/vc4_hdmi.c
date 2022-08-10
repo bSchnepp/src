@@ -1378,6 +1378,26 @@ vc4hdmi_match(device_t parent, cfdata_t cfdata, void *aux)
 }
 
 static void
+vc4_hdmi_i2c_lock_bus(struct i2c_adapter *adapter, unsigned i)
+{
+	i2c_tag_t tag = (i2c_tag_t)adapter;
+	tag->ic_acquire_bus(tag, i);
+}
+
+static void
+vc4_hdmi_i2c_unlock_bus(struct i2c_adapter *adapter, unsigned i)
+{
+	i2c_tag_t tag = (i2c_tag_t)adapter;
+	tag->ic_release_bus(tag, i);
+}
+
+static const struct i2c_lock_operations vc4_i2c_lock_operations =
+{
+	.lock_bus = vc4_hdmi_i2c_lock_bus,
+	.unlock_bus = vc4_hdmi_i2c_unlock_bus
+};
+
+static void
 vc4hdmi_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4hdmi_softc *const sc = device_private(self);
@@ -1445,11 +1465,10 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 
 	/* Get DDC node: 
-	 * it is always guaranteed to be the brcm,bcm2835-i2c device. */
-	hdmi->ddc = &sc->sc_ddc;
-	hdmi->ddc->dev.parent = self;
-
+	 * it is always guaranteed to be the brcm,bcm2835-i2c device. */;
 	/* Does this matter? */
+	sc->sc_ddc.lock_ops = &vc4_i2c_lock_operations;
+
 	memcpy(&hdmi->ddc->name, dcc_name, strlen(dcc_name)); 
 	if (hdmi->ddc == NULL) {
 		aprint_error_dev(self, 
@@ -1457,6 +1476,9 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	i2c_add_adapter(&sc->sc_ddc);
+	hdmi->ddc = &sc->sc_ddc;
+	hdmi->ddc->dev.parent = self;
 	if (hdmi->ddc == NULL) {
 		aprint_error_dev(self, "Cannot acquire ddc i2c adapter: %d\n", 
 			ENODEV);
