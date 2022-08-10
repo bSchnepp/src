@@ -1380,20 +1380,25 @@ vc4hdmi_match(device_t parent, cfdata_t cfdata, void *aux)
 static void
 vc4_hdmi_i2c_lock_bus(struct i2c_adapter *adapter, unsigned i)
 {
-	i2c_tag_t tag = (i2c_tag_t)adapter;
-	tag->ic_acquire_bus(tag, i);
+
+}
+
+static int
+vc4_hdmi_i2c_trylock_bus(struct i2c_adapter *adapter, unsigned i)
+{
+	return 0;
 }
 
 static void
 vc4_hdmi_i2c_unlock_bus(struct i2c_adapter *adapter, unsigned i)
 {
-	i2c_tag_t tag = (i2c_tag_t)adapter;
-	tag->ic_release_bus(tag, i);
+
 }
 
 static const struct i2c_lock_operations vc4_i2c_lock_operations =
 {
 	.lock_bus = vc4_hdmi_i2c_lock_bus,
+	.trylock_bus = vc4_hdmi_i2c_trylock_bus,
 	.unlock_bus = vc4_hdmi_i2c_unlock_bus
 };
 
