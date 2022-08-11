@@ -1420,7 +1420,7 @@ static const struct i2c_lock_operations vc4_i2c_lock_operations =
 static int
 vc4_hdmi_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
-	return 0;
+	return i2c_bit_algo.master_xfer(adapter, msgs, num);
 }
 
 static u32 vc4_hdmi_func(struct i2c_adapter *adapter)
