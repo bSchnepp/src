@@ -1507,8 +1507,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	/* Get DDC node: 
 	 * it is always guaranteed to be the brcm,bcm2835-i2c device. */;
-	/* Does this matter? */
-	sc->sc_ddc.lock_ops = &vc4_i2c_lock_operations;
 
 	ddc_node = fdtbus_i2c_acquire(phandle, "ddc");
 	memcpy(&sc->sc_ddc.name, ddc_node->ic_devname, 
@@ -1516,11 +1514,14 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_ddc.owner = THIS_MODULE;
 	sc->sc_ddc.class = I2C_CLASS_DDC;
+	sc->sc_ddc.dev.parent = self;
+
 	sc->sc_ddc.algo = &vc4_hdmi_algorithm;
+	sc->sc_ddc.lock_ops = &vc4_i2c_lock_operations;
+	sc->sc_ddc.retries = 1;
 
 	i2c_add_adapter(&sc->sc_ddc);
 	hdmi->ddc = &sc->sc_ddc;
-	hdmi->ddc->dev.parent = self;
 	if (hdmi->ddc == NULL) {
 		aprint_error_dev(self, "Cannot acquire ddc i2c adapter: %d\n", 
 			ENODEV);
