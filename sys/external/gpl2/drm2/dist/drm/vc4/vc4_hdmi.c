@@ -1364,6 +1364,7 @@ struct vc4hdmi_softc {
 	void				*sc_ih;
 	struct i2c_adapter 		sc_ddc;
 	struct i2c_algo_bit_data 	sc_bit_algo;
+	i2c_tag_t 			sc_ddc_node;
 };
 
 CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
@@ -1479,7 +1480,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	struct vc4_hdmi *hdmi;
 
 	const int phandle = faa->faa_phandle;
-	i2c_tag_t ddc_node;
+	
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
@@ -1542,9 +1543,9 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	/* Get DDC node: 
 	 * it is always guaranteed to be the brcm,bcm2835-i2c device. */;
 
-	ddc_node = fdtbus_i2c_acquire(phandle, "ddc");
-	memcpy(&sc->sc_ddc.name, ddc_node->ic_devname, 
-		strlen(ddc_node->ic_devname)); 
+	sc->sc_ddc_node = fdtbus_i2c_acquire(phandle, "ddc");
+	memcpy(&sc->sc_ddc.name, sc->sc_ddc_node->ic_devname, 
+		strlen(sc->sc_ddc_node->ic_devname)); 
 
 	sc->sc_ddc.owner = THIS_MODULE;
 	sc->sc_ddc.class = I2C_CLASS_DDC;
