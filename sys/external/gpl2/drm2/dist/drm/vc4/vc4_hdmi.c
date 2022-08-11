@@ -40,6 +40,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <dev/fdt/fdtvar.h>
 #include <linux/rational.h>
 #include <arch/evbarm/rpi/vcprop.h>
+#include <linux/i2c-algo-bit.h>
 #endif
 
 #include <drm/drm_atomic_helper.h>
@@ -1424,7 +1425,10 @@ vc4_hdmi_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 
 static u32 vc4_hdmi_func(struct i2c_adapter *adapter)
 {
-	return 0;
+	return i2c_bit_algo.functionality(adapter) & 
+		(I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+		I2C_FUNC_SMBUS_READ_BLOCK_DATA |
+		I2C_FUNC_SMBUS_BLOCK_PROC_CALL);
 }
 
 static const struct i2c_algorithm vc4_hdmi_algorithm = 
