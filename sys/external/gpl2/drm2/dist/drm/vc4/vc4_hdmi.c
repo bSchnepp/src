@@ -1428,9 +1428,7 @@ vc4_hdmi_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 static u32 vc4_hdmi_func(struct i2c_adapter *adapter)
 {
 	return i2c_bit_algo.functionality(adapter) & 
-		(I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
-		I2C_FUNC_SMBUS_READ_BLOCK_DATA |
-		I2C_FUNC_SMBUS_BLOCK_PROC_CALL);
+		(I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL);
 }
 
 static const struct i2c_algorithm vc4_hdmi_algorithm = 
@@ -1457,10 +1455,12 @@ static int get_data(void *data)
 
 static void set_clock(void *data, int state_high)
 {
+
 }
 
 static void set_data(void *data, int state_high)
 {
+
 }
 
 static int
@@ -1468,6 +1468,7 @@ vc4_pre_xfer(struct i2c_adapter *adapter)
 {
 	struct vc4hdmi_softc *sc = container_of(adapter, 
 	    struct vc4hdmi_softc, sc_ddc);
+	sc->sc_ddc_node->ic_acquire_bus(sc->sc_ddc_node, 0);
 	set_data(sc, 1);
 	set_clock(sc, 1);
 	udelay(10);
@@ -1481,6 +1482,7 @@ vc4_post_xfer(struct i2c_adapter *adapter)
 	    struct vc4hdmi_softc, sc_ddc);
 	set_data(sc, 1);
 	set_clock(sc, 1);
+	sc->sc_ddc_node->ic_release_bus(sc->sc_ddc_node, 0);
 }
 
 static void
