@@ -1419,10 +1419,68 @@ static const struct i2c_lock_operations vc4_i2c_lock_operations =
 	.unlock_bus = vc4_hdmi_i2c_unlock_bus
 };
 
+static i2c_op_t
+linux_i2c_flags_op(uint16_t flags, bool stop)
+{
+
+	if (ISSET(flags, I2C_M_STOP))
+		stop = true;
+
+	if (ISSET(flags, I2C_M_RD))
+		return (stop? I2C_OP_READ_WITH_STOP : I2C_OP_READ);
+	else
+		return (stop? I2C_OP_WRITE_WITH_STOP : I2C_OP_WRITE);
+}
+
+
 static int
 vc4_hdmi_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
-	return i2c_bit_algo.master_xfer(adapter, msgs, num);
+	struct vc4hdmi_softc *sc = to_vc4_hdmi_softc(adapter);
+	struct i2c_algo_bit_data *const abd = adapter->algo_data;
+	int error;
+	int i;
+
+	int n = 0;
+
+	if (abd->pre_xfer) {
+		error = (*abd->pre_xfer)(adapter);
+		if (error)
+			return error;
+	}
+
+	for (i = 0; i < num; i++) {
+		const i2c_op_t op = linux_i2c_flags_op(msgs[i].flags,
+		    ((i + 1) == num));
+
+		const int flags = 0;
+
+		switch (op) {
+		case I2C_OP_READ:
+		case I2C_OP_READ_WITH_STOP:
+			n = iic_exec(sc->sc_ddc_node, op, msgs[i].addr,
+			    NULL, 0, msgs[i].buf, msgs[i].len, flags);
+			break;
+
+		case I2C_OP_WRITE:
+		case I2C_OP_WRITE_WITH_STOP:
+			n = iic_exec(sc->sc_ddc_node, op, msgs[i].addr,
+			    msgs[i].buf, msgs[i].len, NULL, 0, flags);
+			break;
+
+		default:
+			error = EINVAL;
+		}
+
+		if (error)
+			/* XXX errno NetBSD->Linux */
+			return -error;
+	}
+
+	if (abd->post_xfer)
+		(*abd->post_xfer)(adapter);
+
+	return n;
 }
 
 static u32 vc4_hdmi_func(struct i2c_adapter *adapter)
@@ -1455,12 +1513,10 @@ static int get_data(void *data)
 
 static void set_clock(void *data, int state_high)
 {
-
 }
 
 static void set_data(void *data, int state_high)
 {
-
 }
 
 static int
@@ -1468,7 +1524,6 @@ vc4_pre_xfer(struct i2c_adapter *adapter)
 {
 	struct vc4hdmi_softc *sc = container_of(adapter, 
 	    struct vc4hdmi_softc, sc_ddc);
-	sc->sc_ddc_node->ic_acquire_bus(sc->sc_ddc_node, 0);
 	set_data(sc, 1);
 	set_clock(sc, 1);
 	udelay(10);
@@ -1482,7 +1537,6 @@ vc4_post_xfer(struct i2c_adapter *adapter)
 	    struct vc4hdmi_softc, sc_ddc);
 	set_data(sc, 1);
 	set_clock(sc, 1);
-	sc->sc_ddc_node->ic_release_bus(sc->sc_ddc_node, 0);
 }
 
 static void
