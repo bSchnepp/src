@@ -1441,11 +1441,17 @@ static const struct i2c_algorithm vc4_hdmi_algorithm =
 
 static int get_clock(void *data)
 {
+	struct vc4hdmi_softc *const sc = data;
+	if (sc)
+		return true;
 	return 0;
 }
 
 static int get_data(void *data)
 {
+	struct vc4hdmi_softc *const sc = data;
+	if (sc)
+		return true;
 	return 0;
 }
 
@@ -1544,6 +1550,11 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	 * it is always guaranteed to be the brcm,bcm2835-i2c device. */;
 
 	sc->sc_ddc_node = fdtbus_i2c_acquire(phandle, "ddc");
+	if (!sc->sc_ddc_node) {
+		aprint_error_dev(self, "Cannot acquire ddc i2c adapter: %d\n", 
+			ENODEV);
+		return;
+	}
 	memcpy(&sc->sc_ddc.name, sc->sc_ddc_node->ic_devname, 
 		strlen(sc->sc_ddc_node->ic_devname)); 
 
@@ -1569,11 +1580,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	i2c_add_adapter(&sc->sc_ddc);
 	hdmi->ddc = &sc->sc_ddc;
-	if (hdmi->ddc == NULL) {
-		aprint_error_dev(self, "Cannot acquire ddc i2c adapter: %d\n", 
-			ENODEV);
-		return;		
-	}
 
 	/* This is the rate that is set by the firmware.  The number
 	 * needs to be a bit higher than the pixel clock rate
