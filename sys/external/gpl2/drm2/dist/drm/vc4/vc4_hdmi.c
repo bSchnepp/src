@@ -1365,6 +1365,9 @@ struct vc4hdmi_softc {
 	struct i2c_adapter 		sc_ddc;
 	struct i2c_algo_bit_data 	sc_bit_algo;
 	i2c_tag_t 			sc_ddc_node;
+
+	int 				sc_sda;
+	int 				sc_sck;
 };
 
 CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
@@ -1437,12 +1440,18 @@ static int
 vc4_hdmi_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
 	struct vc4hdmi_softc *sc = to_vc4_hdmi_softc(adapter);
+	struct i2c_algo_bit_data *const abd = adapter->algo_data;
 	int error;
 	int i;
 
-	iic_acquire_bus(sc->sc_ddc_node, 0);
-
 	int n = 0;
+
+	if (abd->pre_xfer) {
+		error = (*abd->pre_xfer)(adapter);
+		if (error)
+			return error;
+	}
+
 	for (i = 0; i < num; i++) {
 		const i2c_op_t op = linux_i2c_flags_op(msgs[i].flags,
 		    ((i + 1) == num));
@@ -1466,14 +1475,14 @@ vc4_hdmi_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 			error = EINVAL;
 		}
 
-		if (error) {
-			iic_release_bus(sc->sc_ddc_node, 0);
+		if (error)
 			/* XXX errno NetBSD->Linux */
 			return -error;
-		}
 	}
 
-	iic_release_bus(sc->sc_ddc_node, 0);
+	if (abd->post_xfer)
+		(*abd->post_xfer)(adapter);
+
 	return n;
 }
 
@@ -1489,11 +1498,46 @@ static const struct i2c_algorithm vc4_hdmi_algorithm =
 	.functionality	= vc4_hdmi_func
 };
 
+static int get_clock(void *data)
+{
+	return 0;
+}
+
+static int get_data(void *data)
+{
+	return 0;
+}
+
+static void set_clock(void *data, int state_high)
+{
+}
+
+static void set_data(void *data, int state_high)
+{
+}
+
+static int
+vc4_pre_xfer(struct i2c_adapter *adapter)
+{
+	struct vc4hdmi_softc *sc = container_of(adapter, 
+	    struct vc4hdmi_softc, sc_ddc);
+	return iic_acquire_bus(sc->sc_ddc_node, 0);;
+}
+
+static void
+vc4_post_xfer(struct i2c_adapter *adapter)
+{
+	struct vc4hdmi_softc *sc = container_of(adapter, 
+	    struct vc4hdmi_softc, sc_ddc);
+	iic_release_bus(sc->sc_ddc_node, 0);
+}
+
 static void
 vc4hdmi_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4hdmi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
+	struct i2c_algo_bit_data * algo;
 	struct vc4_hdmi *hdmi;
 
 	const int phandle = faa->faa_phandle;
@@ -1576,6 +1620,19 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	sc->sc_ddc.algo = &vc4_hdmi_algorithm;
 	sc->sc_ddc.lock_ops = &vc4_i2c_lock_operations;
 	sc->sc_ddc.retries = 1;
+
+	algo = &sc->sc_bit_algo;
+	algo->setsda = set_data;
+	algo->setscl = set_clock;
+	algo->getsda = get_data;
+	algo->getscl = get_clock;
+	algo->pre_xfer = vc4_pre_xfer;
+	algo->post_xfer = vc4_post_xfer;
+	algo->udelay = 10;	/* Arbitrary: may need to specify later. */
+	algo->timeout = usecs_to_jiffies(2200);
+	algo->data = sc;
+
+	sc->sc_ddc.algo_data = algo;
 
 	i2c_add_adapter(&sc->sc_ddc);
 	hdmi->ddc = &sc->sc_ddc;
