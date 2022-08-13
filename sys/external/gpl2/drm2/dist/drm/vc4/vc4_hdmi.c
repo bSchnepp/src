@@ -1365,6 +1365,9 @@ struct vc4hdmi_softc {
 	struct i2c_adapter 		sc_ddc;
 	struct i2c_algo_bit_data 	sc_bit_algo;
 	i2c_tag_t 			sc_ddc_node;
+
+	int 				sc_sda;
+	int 				sc_sck;
 };
 
 CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),
@@ -1498,25 +1501,25 @@ static const struct i2c_algorithm vc4_hdmi_algorithm =
 static int get_clock(void *data)
 {
 	struct vc4hdmi_softc *sc = data;
-	if (sc)
-		return true;
-	return 0;
+	return sc->sc_sck;
 }
 
 static int get_data(void *data)
 {
 	struct vc4hdmi_softc *sc = data;
-	if (sc)
-		return true;
-	return 0;
+	return sc->sc_sda;
 }
 
 static void set_clock(void *data, int state_high)
 {
+	struct vc4hdmi_softc *sc = data;
+	sc->sc_sck = state_high;
 }
 
 static void set_data(void *data, int state_high)
 {
+	struct vc4hdmi_softc *sc = data;
+	sc->sc_sda = state_high;
 }
 
 static int
