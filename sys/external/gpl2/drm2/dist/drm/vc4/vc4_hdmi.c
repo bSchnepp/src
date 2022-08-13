@@ -1500,13 +1500,19 @@ static const struct i2c_algorithm vc4_hdmi_algorithm =
 
 static int get_clock(void *data)
 {
+	uint8_t val;
 	struct vc4hdmi_softc *sc = data;
+	sc->sc_ddc_node->ic_read_byte(sc->sc_ddc_node, &val, 0);
+	sc->sc_sck = val;
 	return sc->sc_sck;
 }
 
 static int get_data(void *data)
 {
+	uint8_t val;
 	struct vc4hdmi_softc *sc = data;
+	sc->sc_ddc_node->ic_read_byte(sc->sc_ddc_node, &val, 0);
+	sc->sc_sda = val;
 	return sc->sc_sda;
 }
 
@@ -1514,12 +1520,14 @@ static void set_clock(void *data, int state_high)
 {
 	struct vc4hdmi_softc *sc = data;
 	sc->sc_sck = state_high;
+	sc->sc_ddc_node->ic_write_byte(sc->sc_ddc_node, sc->sc_sck, 0);
 }
 
 static void set_data(void *data, int state_high)
 {
 	struct vc4hdmi_softc *sc = data;
 	sc->sc_sda = state_high;
+	sc->sc_ddc_node->ic_write_byte(sc->sc_ddc_node, sc->sc_sda, 0);
 }
 
 static int
