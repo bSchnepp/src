@@ -37,8 +37,8 @@
 __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef __NetBSD__
-#include <dev/fdt/fdtvar.h>
 #include <linux/rational.h>
+#include <dev/fdt/fdtvar.h>
 #include <arch/evbarm/rpi/vcprop.h>
 #include <linux/i2c-algo-bit.h>
 #endif
@@ -1498,24 +1498,6 @@ static const struct i2c_algorithm vc4_hdmi_algorithm =
 	.functionality	= vc4_hdmi_func
 };
 
-static int get_clock(void *data)
-{
-	return 0;
-}
-
-static int get_data(void *data)
-{
-	return 0;
-}
-
-static void set_clock(void *data, int state_high)
-{
-}
-
-static void set_data(void *data, int state_high)
-{
-}
-
 static int
 vc4_pre_xfer(struct i2c_adapter *adapter)
 {
@@ -1611,7 +1593,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 	memcpy(&sc->sc_ddc.name, sc->sc_ddc_node->ic_devname, 
-		strlen(sc->sc_ddc_node->ic_devname)); 
+		strlen(sc->sc_ddc_node->ic_devname));
 
 	sc->sc_ddc.owner = THIS_MODULE;
 	sc->sc_ddc.class = I2C_CLASS_DDC;
@@ -1622,10 +1604,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	sc->sc_ddc.retries = 1;
 
 	algo = &sc->sc_bit_algo;
-	algo->setsda = set_data;
-	algo->setscl = set_clock;
-	algo->getsda = get_data;
-	algo->getscl = get_clock;
 	algo->pre_xfer = vc4_pre_xfer;
 	algo->post_xfer = vc4_post_xfer;
 	algo->udelay = 10;	/* Arbitrary: may need to specify later. */
