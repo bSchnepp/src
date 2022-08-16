@@ -1519,6 +1519,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4hdmi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
+	struct fdtbus_gpio_pin *gp = NULL;
 	struct i2c_algo_bit_data * algo;
 	struct vc4_hdmi *hdmi;
 
@@ -1572,7 +1573,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	hdmi->hdmicore_bst = faa->faa_bst;
 	hdmi->hd_bst = faa->faa_bst;
 	hdmi->encoder = &sc->sc_encoder.base.base;
-
+	hdmi->encoder->base.type = VC4_ENCODER_TYPE_HDMI;
 	vc4->hdmi = hdmi;
 
 	error = clk_enable(sc->sc_hdmi.hsm_clock);
@@ -1623,6 +1624,14 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	if (error) {
 		DRM_ERROR("Failed to set HSM clock rate: %d\n", error);
 		goto err_put_i2c;
+	}
+
+	/* Try to use GPIO stuff, if possible. */
+	hdmi->hpd_active_low = 0;
+	gp = fdtbus_gpio_acquire(phandle, "hpd-gpios", GPIO_PIN_INPUT);
+	if (gp != NULL)
+	{
+		hdmi->hpd_active_low = 1;
 	}
 
 	/* HDMI core must be enabled. */
