@@ -1106,9 +1106,13 @@ static const struct snd_dmaengine_pcm_config pcm_conf = {
 	.chan_names[SNDRV_PCM_STREAM_PLAYBACK] = "audio-rx",
 	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
 };
+#endif
 
 static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 {
+#ifdef __NetBSD__
+	return 0;
+#else
 	struct snd_soc_dai_link *dai_link = &hdmi->audio.link;
 	struct snd_soc_card *card = &hdmi->audio.card;
 	struct device *dev = &hdmi->pdev->dev;
@@ -1187,9 +1191,8 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 		dev_err(dev, "Could not register sound card: %d\n", ret);
 
 	return ret;
-
-}
 #endif
+}
 
 #ifdef CONFIG_DRM_VC4_HDMI_CEC
 static irqreturn_t vc4_cec_irq_handler_thread(int irq, void *priv)
@@ -1655,6 +1658,13 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	if (sc->sc_hdmi.connector == NULL) {
 		error = PTR_ERR(sc->sc_hdmi.connector);
 		goto err_destroy_encoder;
+	}
+
+	error = vc4_hdmi_audio_init(hdmi);
+	if (error) {
+		aprint_error_dev(self, "Cannot set up HDMI audio: %d\n", 
+			ENODEV);
+		return;		
 	}
 
 	aprint_naive("\n");
