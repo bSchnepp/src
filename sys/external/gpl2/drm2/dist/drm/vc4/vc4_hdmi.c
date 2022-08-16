@@ -99,11 +99,12 @@ struct vc4_hdmi {
 	bus_space_handle_t hdmicore_bsh;
 	bus_space_tag_t hd_bst;
 	bus_space_handle_t hd_bsh;
+	struct fdtbus_gpio_pin *hpd_gpio;
 #else
 	void __iomem *hdmicore_regs;
 	void __iomem *hd_regs;
-#endif
 	int hpd_gpio;
+#endif
 	bool hpd_active_low;
 
 	struct cec_adapter *cec_adap;
@@ -237,10 +238,14 @@ vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	if (vc4->hdmi->hpd_gpio) {
-#if notyet
+#ifdef __NetBSD__
+		return connector_status_connected;
+#else
 		if (gpio_get_value_cansleep(vc4->hdmi->hpd_gpio) ^
 		    vc4->hdmi->hpd_active_low)
 			return connector_status_connected;
+#endif
+#if notyet
 		cec_phys_addr_invalidate(vc4->hdmi->cec_adap);
 #endif
 		return connector_status_disconnected;
@@ -1522,7 +1527,6 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4hdmi_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	struct fdtbus_gpio_pin *gp = NULL;
 	struct i2c_algo_bit_data * algo;
 	struct vc4_hdmi *hdmi;
 
@@ -1631,8 +1635,8 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	/* Try to use GPIO stuff, if possible. */
 	hdmi->hpd_active_low = 0;
-	gp = fdtbus_gpio_acquire(phandle, "hpd-gpios", GPIO_PIN_INPUT);
-	if (gp != NULL)
+	hdmi->hpd_gpio = fdtbus_gpio_acquire(phandle, "hpd-gpios", GPIO_PIN_INPUT);
+	if (hdmi->hpd_gpio != NULL)
 	{
 		hdmi->hpd_active_low = 1;
 	}

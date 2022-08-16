@@ -1254,6 +1254,20 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 
 	vc4_crtc->pdev = NULL;
 	vc4_crtc->bst = faa->faa_bst;
+	proplen = OF_getproplen(phandle, "compatible");
+	if (proplen > 50) {
+		aprint_error(": failed lookup of crtc data\n");
+	}
+
+	OF_getprop(phandle, "compatible", name, proplen);
+	dev = 0;
+	/* Not sure why -2, but this needs to be the case here. */
+	if (name[proplen-2] == '1')
+			dev = 1;
+	else if (name[proplen-2] == '2')
+			dev = 2;
+	vc4_crtc->data = &pvalve_data[dev];
+
 	error = bus_space_map(faa->faa_bst, addr, size, 0, &vc4_crtc->bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
@@ -1276,21 +1290,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
 				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
-
-	proplen = OF_getproplen(phandle, "compatible");
-	if (proplen > 50) {
-		aprint_error(": failed lookup of crtc data\n");
-	}
-
-	OF_getprop(phandle, "compatible", name, proplen);
-	dev = 0;
-	/* Not sure why -2, but this needs to be the case here. */
-	if (name[proplen-2] == '1')
-			dev = 1;
-	else if (name[proplen-2] == '2')
-			dev = 2;
-	vc4_crtc->data = &pvalve_data[dev];
-	
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
 	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
