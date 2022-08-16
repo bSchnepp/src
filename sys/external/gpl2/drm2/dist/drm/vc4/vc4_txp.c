@@ -177,11 +177,7 @@ struct vc4_txp {
 
 static inline struct vc4_txp *encoder_to_vc4_txp(struct drm_encoder *encoder)
 {
-#ifdef notyet
 	return container_of(encoder, struct vc4_txp, connector.encoder);
-#else
-	return NULL;
-#endif
 }
 
 static inline struct vc4_txp *connector_to_vc4_txp(struct drm_connector *conn)
@@ -439,6 +435,10 @@ vc4txp_match(device_t parent, cfdata_t cfdata, void *aux)
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
+static const struct drm_encoder_funcs vc4_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static void
 vc4txp_attach(device_t parent, device_t self, void *aux)
 {
@@ -468,6 +468,20 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
 	sc->sc_phandle = faa->faa_phandle;	
 	drm_connector_helper_add(&sc->sc_txp.connector.base,
 				 &vc4_txp_connector_helper_funcs);
+
+	drm_encoder_helper_add(&sc->sc_txp.connector.encoder, 
+		&vc4_txp_encoder_helper_funcs);
+	sc->sc_txp.connector.encoder.possible_crtcs = ARRAY_SIZE(drm_fmts);
+	error = -drm_encoder_init(sc->sc_drm_dev, &sc->sc_txp.connector.encoder,
+		&vc4_encoder_funcs, DRM_MODE_ENCODER_VIRTUAL,
+		NULL);
+	if (error) {
+		aprint_error(": failed to setup encoder: %d\n", error);
+ 		return;		
+	}
+
+
+
 	error = -drm_writeback_connector_init(sc->sc_drm_dev, 
 					   &sc->sc_txp.connector,
 					   &vc4_txp_connector_funcs,

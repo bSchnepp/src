@@ -43,6 +43,7 @@ struct drm_writeback_connector;
 
 struct drm_writeback_connector {
 	struct drm_connector	base;
+	struct drm_encoder      encoder;
 };
 
 struct drm_writeback_job {
