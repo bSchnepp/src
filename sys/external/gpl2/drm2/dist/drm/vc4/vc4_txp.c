@@ -468,11 +468,15 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
 	sc->sc_phandle = faa->faa_phandle;	
 	drm_connector_helper_add(&sc->sc_txp.connector.base,
 				 &vc4_txp_connector_helper_funcs);
-	error = drm_writeback_connector_init(sc->sc_drm_dev, 
+	error = -drm_writeback_connector_init(sc->sc_drm_dev, 
 					   &sc->sc_txp.connector,
 					   &vc4_txp_connector_funcs,
 					   &vc4_txp_encoder_helper_funcs,
 					   drm_fmts, ARRAY_SIZE(drm_fmts));
+	if (error) {
+		aprint_error(": failed to setup connector: %d\n", error);
+ 		return;		
+	}
 
 	sc->sc_ih = fdtbus_intr_establish(phandle, 0, IPL_VM, IST_LEVEL,
 			       vc4_txp_interrupt, &sc->sc_txp);
