@@ -1535,6 +1535,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	bus_addr_t addr;
 	bus_size_t size;
 	int error;
+	int value;
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = vc4->dev;
@@ -1635,9 +1636,12 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 	/* Try to use GPIO stuff, if possible. */
 	hdmi->hpd_active_low = 0;
-	hdmi->hpd_gpio = fdtbus_gpio_acquire(phandle, "hpd-gpios", GPIO_PIN_INPUT);
-	if (hdmi->hpd_gpio != NULL)
-	{
+	if (fdtbus_get_prop(phandle, "hpd-gpios", &value)) {
+		hdmi->hpd_gpio = fdtbus_gpio_acquire(phandle, "hpd-gpios", GPIO_PIN_INPUT);
+		if (hdmi->hpd_gpio == NULL) {
+			error = ENOENT;
+			goto err_unprepare_hsm;
+		}
 		hdmi->hpd_active_low = 1;
 	}
 
@@ -1677,8 +1681,9 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 
 
 err_destroy_encoder:
-	vc4_hdmi_encoder_destroy(sc->sc_hdmi.encoder);
-	clk_disable(sc->sc_hdmi.hsm_clock);
+	vc4_hdmi_encoder_destroy(hdmi->encoder);
+err_unprepare_hsm:
+	clk_disable_unprepare(hdmi->hsm_clock);
 err_put_i2c:
 	return;
 }

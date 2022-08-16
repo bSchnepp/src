@@ -600,23 +600,22 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	vc4->vec = vec;
-	vec->bst = faa->faa_bst;
-	vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
-	vec_encoder->vec = vec;
-	vec->encoder = &vec_encoder->base.base;
-
-	error = bus_space_map(faa->faa_bst, addr, size, 0, &vec->bsh);
-	if (error) {
-		aprint_error(": failed to map register %#lx@%#lx: %d\n",
-		    size, addr, error);
-		return;
-	}
-
 	error = -drm_mode_create_tv_properties(sc->sc_drm_dev, 
 		ARRAY_SIZE(tv_mode_names), tv_mode_names);
 	if (error) {
 		aprint_error("unable to register tv properties: %d\n", error);
+		return;
+	}
+
+	vec_encoder->base.type = VC4_ENCODER_TYPE_VEC;
+	vec_encoder->vec = vec;
+	vec->encoder = &vec_encoder->base.base;
+	vec->bst = faa->faa_bst;
+	
+	error = bus_space_map(faa->faa_bst, addr, size, 0, &vec->bsh);
+	if (error) {
+		aprint_error(": failed to map register %#lx@%#lx: %d\n",
+		    size, addr, error);
 		return;
 	}
 
@@ -629,12 +628,14 @@ vc4vec_attach(device_t parent, device_t self, void *aux)
 	drm_encoder_init(sc->sc_drm_dev, vec->encoder, &vc4_vec_encoder_funcs,
 			 DRM_MODE_ENCODER_TVDAC, NULL);
 	drm_encoder_helper_add(vec->encoder, &vc4_vec_encoder_helper_funcs);
+	
 	vec->connector = vc4_vec_connector_init(sc->sc_drm_dev, vec);
 	if (vec->connector == NULL) {
 		aprint_error(": couldn't setup connector");
 		drm_encoder_cleanup(vec->encoder);
 		return;
 	}
+	vc4->vec = vec;	
 	aprint_naive("\n");
 	aprint_normal(": VEC\n");
 }
