@@ -1637,12 +1637,14 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 	/* Try to use GPIO stuff, if possible. */
 	hdmi->hpd_active_low = 0;
 	if (fdtbus_get_prop(phandle, "hpd-gpios", &value)) {
-		hdmi->hpd_gpio = fdtbus_gpio_acquire(phandle, "hpd-gpios", GPIO_PIN_INPUT);
+		int flags = 0;
+		hdmi->hpd_gpio = fdtbus_gpio_acquire(phandle, 
+			"hpd-gpios", GPIO_PIN_INPUT);
 		if (hdmi->hpd_gpio == NULL) {
 			error = ENOENT;
 			goto err_unprepare_hsm;
 		}
-		hdmi->hpd_active_low = 1;
+		hdmi->hpd_active_low = flags & 1;
 	}
 
 	/* HDMI core must be enabled. */
