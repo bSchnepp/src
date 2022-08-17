@@ -42,13 +42,31 @@ struct drm_framebuffer;
 struct drm_writeback_connector;
 
 struct drm_writeback_connector {
-	struct drm_connector	base;
-	struct drm_encoder      encoder;
+	struct drm_connector		base;
+	struct drm_encoder      	encoder;
+
+	spinlock_t 			job_lock;
+	spinlock_t 			fence_lock;
+
+	struct list_head 		job_queue;
+
+	unsigned int 			fence_context;
+	unsigned long 			fence_seqno;
+
+	struct drm_property_blob 	*pixel_formats_blob_ptr;
+	char 				timeline_name[32];
 };
 
 struct drm_writeback_job {
-	struct drm_framebuffer	*fb;
-	struct dma_fence	*out_fence;
+	struct drm_framebuffer		*fb;
+	struct dma_fence		*out_fence;
+
+	struct drm_writeback_connector 	*connector;
+	bool				prepared;
+
+	struct work_struct		cleanup_work;
+	struct list_head		list_entry;
+
 };
 
 struct drm_writeback_connector *
