@@ -14,6 +14,7 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef __NetBSD__
 #include <dev/fdt/fdtvar.h>
+#include <external/gpl2/drm2/vc4/vc4_drm_writeback.h>
 #endif
 
 #include <linux/clk.h>
@@ -435,10 +436,6 @@ vc4txp_match(device_t parent, cfdata_t cfdata, void *aux)
 	return of_compatible_match(faa->faa_phandle, compat_data);
 }
 
-static const struct drm_encoder_funcs vc4_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 static void
 vc4txp_attach(device_t parent, device_t self, void *aux)
 {
@@ -465,33 +462,17 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
  		return;
  	}
 
-	sc->sc_phandle = faa->faa_phandle;	
+	sc->sc_phandle = faa->faa_phandle;
 	drm_connector_helper_add(&sc->sc_txp.connector.base,
 				 &vc4_txp_connector_helper_funcs);
-
-	drm_encoder_helper_add(&sc->sc_txp.connector.encoder, 
-		&vc4_txp_encoder_helper_funcs);
-	sc->sc_txp.connector.encoder.possible_crtcs = ARRAY_SIZE(drm_fmts);
-	error = -drm_encoder_init(sc->sc_drm_dev, &sc->sc_txp.connector.encoder,
-		&vc4_encoder_funcs, DRM_MODE_ENCODER_VIRTUAL,
-		NULL);
-	if (error) {
-		aprint_error(": failed to setup encoder: %d\n", error);
- 		return;		
-	}
-
-	sc->sc_txp.connector.base.interlace_allowed = false;
-	error = drm_connector_init(sc->sc_drm_dev, &sc->sc_txp.connector.base, 
-		&vc4_txp_connector_funcs, DRM_MODE_CONNECTOR_WRITEBACK);
+	
+	error = -vc4_drm_writeback_connector_init(sc->sc_drm_dev, 
+					   &sc->sc_txp.connector,
+					   &vc4_txp_connector_funcs,
+					   &vc4_txp_encoder_helper_funcs,
+					   drm_fmts, ARRAY_SIZE(drm_fmts), 0);
 	if (error) {
 		aprint_error(": failed to setup connector: %d\n", error);
- 		return;		
-	}
-
-	error = drm_connector_attach_encoder(&sc->sc_txp.connector.base, 
-		&sc->sc_txp.connector.encoder);
-	if (error) {
-		aprint_error(": failed to attach encoder: %d\n", error);
  		return;		
 	}
 
