@@ -480,7 +480,20 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
  		return;		
 	}
 
+	sc->sc_txp.connector.base.interlace_allowed = false;
+	error = drm_connector_init(sc->sc_drm_dev, &sc->sc_txp.connector.base, 
+		&vc4_txp_connector_funcs, DRM_MODE_CONNECTOR_WRITEBACK);
+	if (error) {
+		aprint_error(": failed to setup connector: %d\n", error);
+ 		return;		
+	}
 
+	error = drm_connector_attach_encoder(&sc->sc_txp.connector.base, 
+		&sc->sc_txp.connector.encoder);
+	if (error) {
+		aprint_error(": failed to attach encoder: %d\n", error);
+ 		return;		
+	}
 
 	error = -drm_writeback_connector_init(sc->sc_drm_dev, 
 					   &sc->sc_txp.connector,
