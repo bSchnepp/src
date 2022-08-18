@@ -1373,9 +1373,6 @@ struct vc4hdmi_softc {
 	struct i2c_adapter 		sc_ddc;
 	struct i2c_algo_bit_data 	sc_bit_algo;
 	i2c_tag_t 			sc_ddc_node;
-
-	int 				sc_sda;
-	int 				sc_sck;
 };
 
 CFATTACH_DECL_NEW(vcfourhdmi, sizeof(struct vc4hdmi_softc),

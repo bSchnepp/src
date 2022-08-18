@@ -60,6 +60,9 @@ out0:	return ret;
 void
 drm_client_register(struct drm_client_dev *client)
 {
+	mutex_lock(&client->dev->clientlist_mutex);
+	list_add(&client->list, &client->dev->clientlist);
+	mutex_unlock(&client->dev->clientlist_mutex);
 }
 
 void
@@ -73,6 +76,20 @@ drm_client_release(struct drm_client_dev *client)
 void
 drm_client_dev_hotplug(struct drm_device *dev)
 {
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	{
+		struct drm_client_dev *client;
+		mutex_lock(&dev->clientlist_mutex);
+		list_for_each_entry(client, &dev->clientlist, list) {
+			if (client->funcs == NULL)
+				continue;
+			if (client->funcs->hotplug == NULL)
+				continue;
+
+			client->funcs->hotplug(client);
+		}
+		mutex_unlock(&dev->clientlist_mutex);
+	}
 }
 
 void

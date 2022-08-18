@@ -3,6 +3,14 @@
 #ifndef VC4_DRM_WRITEBACK_H
 #define VC4_DRM_WRITEBACK_H
 
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_property.h>
+#include <drm/drm_writeback.h>
+
 int vc4_drm_writeback_connector_init(struct drm_device *, struct drm_writeback_connector *, const struct drm_connector_funcs *, const struct drm_encoder_helper_funcs *, const u32 *, int, u32);
 int vc4_drm_writeback_connector_init_with_encoder(struct drm_device *, struct drm_writeback_connector *, struct drm_encoder *, const struct drm_connector_funcs *, const u32 *, int);
 int vc4_drm_writeback_set_fb(struct drm_connector_state *, struct drm_framebuffer *);

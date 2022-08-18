@@ -43,6 +43,7 @@ struct drm_client_dev {
 	struct drm_framebuffer		*fb;
 	struct drm_device		*dev;
 	const struct drm_client_funcs	*funcs;
+	struct list_head 		list;
 };
 
 struct drm_client_funcs {

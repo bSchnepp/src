@@ -472,7 +472,7 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
 					   &sc->sc_txp.connector,
 					   &vc4_txp_connector_funcs,
 					   &vc4_txp_encoder_helper_funcs,
-					   drm_fmts, ARRAY_SIZE(drm_fmts));
+					   drm_fmts, ARRAY_SIZE(drm_fmts), 0);
 	if (error) {
 		aprint_error(": failed to setup connector: %d\n", error);
  		return;		
