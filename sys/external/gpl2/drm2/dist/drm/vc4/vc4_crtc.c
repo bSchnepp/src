@@ -1185,7 +1185,33 @@ vc4_crtc_get_cob_allocation(struct vc4_crtc *vc4_crtc)
 static int vc4crtc_match(device_t, cfdata_t, void *);
 static void vc4crtc_attach(device_t, device_t, void *);
 
-static const struct vc4_crtc_data pvalve_data[3];
+static const struct vc4_crtc_data pvalve_data[3] =
+{
+	{
+		.hvs_channel = 0,
+		.debugfs_name = "crtc0_regs",
+		.encoder_types = {
+			[PV_CONTROL_CLK_SELECT_DSI] = VC4_ENCODER_TYPE_DSI0,
+			[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_DPI,
+		},
+	},
+		{
+		.hvs_channel = 2,
+		.debugfs_name = "crtc1_regs",
+		.encoder_types = {
+			[PV_CONTROL_CLK_SELECT_DSI] = VC4_ENCODER_TYPE_DSI1,
+			[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_SMI,
+		},
+	},
+		{
+		.hvs_channel = 1,
+		.debugfs_name = "crtc2_regs",
+		.encoder_types = {
+			[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_HDMI,
+			[PV_CONTROL_CLK_SELECT_VEC] = VC4_ENCODER_TYPE_VEC,
+		},
+	}
+};
 
 static const struct device_compatible_entry compat_data[] = {
 	{ .compat = "brcm,bcm2835-pixelvalve0",
