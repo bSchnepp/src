@@ -331,7 +331,9 @@ static void vc4_txp_connector_atomic_commit(struct drm_connector *conn,
 
 	TXP_WRITE(TXP_DST_CTRL, ctrl);
 
-#ifdef notyet
+#ifdef __NetBSD__
+	vc4_drm_writeback_queue_job(&txp->connector, conn_state);
+#else
 	drm_writeback_queue_job(&txp->connector, conn_state);
 #endif
 }
@@ -470,7 +472,7 @@ vc4txp_attach(device_t parent, device_t self, void *aux)
 					   &sc->sc_txp.connector,
 					   &vc4_txp_connector_funcs,
 					   &vc4_txp_encoder_helper_funcs,
-					   drm_fmts, ARRAY_SIZE(drm_fmts), 0);
+					   drm_fmts, ARRAY_SIZE(drm_fmts));
 	if (error) {
 		aprint_error(": failed to setup connector: %d\n", error);
  		return;		
