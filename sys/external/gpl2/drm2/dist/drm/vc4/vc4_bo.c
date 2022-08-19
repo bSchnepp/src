@@ -296,19 +296,27 @@ void vc4_bo_remove_from_purgeable_pool(struct vc4_bo *bo)
 
 static void vc4_bo_purge(struct drm_gem_object *obj)
 {
+#ifdef __NetBSD__
 	struct vc4_bo *bo = to_vc4_bo(obj);
 	struct drm_device *dev = obj->dev;
 
 	WARN_ON(!mutex_is_locked(&bo->madv_lock));
 	WARN_ON(bo->madv != VC4_MADV_DONTNEED);
-#ifdef __NetBSD__
+
 	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.dmamap);
-#else
-	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
-	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.paddr);
-#endif
 	bo->base.vaddr = NULL;
 	bo->madv = __VC4_MADV_PURGED;
+#else
+	struct vc4_bo *bo = to_vc4_bo(obj);
+	struct drm_device *dev = obj->dev;
+
+	WARN_ON(!mutex_is_locked(&bo->madv_lock));
+	WARN_ON(bo->madv != VC4_MADV_DONTNEED);
+	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.paddr);
+	bo->base.vaddr = NULL;
+	bo->madv = __VC4_MADV_PURGED;
+#endif
 }
 
 static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
