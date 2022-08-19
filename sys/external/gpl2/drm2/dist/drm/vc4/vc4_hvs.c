@@ -306,7 +306,6 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	struct fdt_attach_args * const faa = aux;
 
 	struct vc4_hvs * hvs = &sc->sc_hvs;
-	vc4->hvs = hvs;
 
 	const int phandle = faa->faa_phandle;
 	bus_addr_t addr;
@@ -323,7 +322,6 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	hvs->bst = faa->faa_bst;
 	sc->sc_phandle = faa->faa_phandle;
 	error = bus_space_map(faa->faa_bst, addr, size, BUS_SPACE_MAP_LINEAR, &hvs->bsh);
 	if (error) {
@@ -332,6 +330,7 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	hvs->bst = faa->faa_bst;
 	error = bus_space_subregion(hvs->bst, hvs->bsh, SCALER_DLIST_START, 
 		SCALER_DLIST_SIZE, &hvs->dlist_bsh);
 	if (error) {
@@ -360,6 +359,7 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 		return;		
 	}
 
+	vc4->hvs = hvs;
 	dispcfg = HVS_READ(SCALER_DISPCTRL);
 
 	dispcfg |= SCALER_DISPCTRL_ENABLE;
@@ -368,7 +368,7 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 		    SCALER_DISPCTRL_DISPEIRQ(1) |
 		    SCALER_DISPCTRL_DISPEIRQ(2);
 
-	
+
 	/* Similarly do as the Linux driver does: set up channel 2 for usage. */
 	dispcfg &= ~SCALER_DISPCTRL_DSP3_MUX_MASK;
 
@@ -393,7 +393,7 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 	HVS_WRITE(SCALER_DISPCTRL, dispcfg);	
 
 	sc->sc_ih = fdtbus_intr_establish(phandle, 0, IPL_VM, IST_LEVEL,
-			       vc4_hvs_irq_handler, &sc->sc_hvs);
+			       vc4_hvs_irq_handler, vc4->dev);
 	if (sc->sc_ih == NULL) {
 		aprint_error_dev(self, "unable to register irq: %d\n", error);
 		return;
