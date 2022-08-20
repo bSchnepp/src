@@ -244,6 +244,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	const int phandle = faa->faa_phandle;
 	int error;
 
+	sc->sc_dev = self;
 	vc4 = devm_kzalloc(sc->sc_dev, sizeof(*vc4), GFP_KERNEL);
 	if (!vc4) {
 		aprint_error_dev(self, "unable to allocate vc4: %d\n", 
@@ -251,7 +252,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
-	sc->sc_dev = self;
 	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
 	if (sc->sc_drm_dev == NULL) {
 		aprint_error_dev(self, "unable to create drm device: %ld\n",
