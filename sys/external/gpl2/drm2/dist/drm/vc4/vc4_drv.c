@@ -200,7 +200,7 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_PERFMON_GET_VALUES, vc4_perfmon_get_values_ioctl, DRM_RENDER_ALLOW),
 };
 
-#if __NetBSD__
+#ifdef __NetBSD__
 
 static int vc4_match(device_t, cfdata_t, void *);
 static void vc4_attach(device_t, device_t, void *);
@@ -244,6 +244,7 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	const int phandle = faa->faa_phandle;
 	int error;
 
+	sc->sc_phandle = phandle;
 	sc->sc_dev = self;
 	vc4 = devm_kzalloc(sc->sc_dev, sizeof(*vc4), GFP_KERNEL);
 	if (!vc4) {
@@ -259,14 +260,8 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		sc->sc_drm_dev = NULL;
 		return;
 	}
-	sc->sc_drm_dev->dev_private = &sc->sc_pdev;
-
-	sc->sc_phandle = phandle;
 	sc->sc_drm_dev->bst = faa->faa_bst;
 	sc->sc_drm_dev->dmat = faa->faa_dmat;
-#ifdef notyet
-	sc->sc_dev->coherent_dma_mask = DMA_BIT_MASK(32);
-#endif
 
 	vc4->dev = sc->sc_drm_dev;
 	sc->sc_drm_dev->dev_private = vc4;
@@ -281,7 +276,6 @@ vc4_attach(device_t parent, device_t self, void *aux)
 	drm_mode_config_init(vc4->dev);
 	vc4_gem_init(vc4->dev);
 
-	/* v3d should be the last driver to load, so this is safe. */
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
 	error = vc4_kms_load(vc4->dev);
