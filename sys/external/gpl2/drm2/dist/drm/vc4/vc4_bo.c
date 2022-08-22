@@ -137,7 +137,11 @@ static void vc4_bo_set_label(struct drm_gem_object *gem_obj, int label)
 	struct vc4_bo *bo = to_vc4_bo(gem_obj);
 	struct vc4_dev *vc4 = to_vc4_dev(gem_obj->dev);
 
+#ifdef __NetBSD__
+	BUG_ON(!mutex_is_locked(&vc4->bo_lock));
+#else
 	lockdep_assert_held(&vc4->bo_lock);
+#endif
 
 	if (label != -1) {
 		vc4->bo_labels[label].num_allocated++;
@@ -530,7 +534,11 @@ static void vc4_bo_cache_free_old(struct drm_device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned long expire_time = jiffies - msecs_to_jiffies(1000);
 
+#ifdef __NetBSD__
+	BUG_ON(!mutex_is_locked(&vc4->bo_lock));
+#else
 	lockdep_assert_held(&vc4->bo_lock);
+#endif
 
 	while (!list_empty(&vc4->bo_cache.time_list)) {
 		struct vc4_bo *bo = list_last_entry(&vc4->bo_cache.time_list,
