@@ -884,7 +884,7 @@ int vc4_prime_mmap(struct drm_gem_object *obj, off_t *offp, size_t len,
 {
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
-	if (bo->validated_shader) {
+	if (bo->validated_shader && (prot & PROT_WRITE)) {
 		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
 		return -EINVAL;
 	}
