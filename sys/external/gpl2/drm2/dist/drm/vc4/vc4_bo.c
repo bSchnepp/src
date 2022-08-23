@@ -726,15 +726,55 @@ struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
 int vc4_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr, struct vm_page **pps, 
     int npages, int centeridx, vm_prot_t access_type, int flags)
 {
+	struct vm_map_entry *entry = ufi->entry;
 	struct uvm_object *const uobj = ufi->entry->object.uvm_obj;
-	struct drm_gem_object *obj =
+	struct drm_gem_object *gem_obj =
 	    container_of(uobj, struct drm_gem_object, gemo_uvmobj);
-	struct vc4_bo *bo = to_vc4_bo(obj);
+	struct drm_gem_cma_object *obj = to_drm_gem_cma_obj(gem_obj);
+	struct vc4_bo *bo = to_vc4_bo(gem_obj);
+	off_t curr_offset;
+	vaddr_t curr_va;
+	paddr_t paddr, mdpgno;
+	u_int mmapflags;
+	int lcv, retval;
+	vm_prot_t mapprot;
+
+	/* Is this page actually mapped? */
+	curr_offset = entry->offset + (vaddr - entry->start);
+	curr_va = vaddr;
+
+	for (lcv = 0; lcv < npages; lcv++, curr_offset += PAGE_SIZE,
+	    curr_va += PAGE_SIZE) {
+		if ((flags & PGO_ALLPAGES) == 0 && lcv != centeridx)
+			continue;
+		if (pps[lcv] == PGO_DONTCARE)
+			continue;
+
+		mdpgno = bus_dmamem_mmap(obj->dmat, obj->dmasegs, 1,
+		    curr_offset, access_type, BUS_DMA_PREFETCHABLE);
+		if (mdpgno == -1) {
+			retval = EIO;
+			break;
+		}
+		paddr = pmap_phys_address(mdpgno);
+		mmapflags = pmap_mmap_flags(mdpgno);
+		mapprot = ufi->entry->protection;
+
+		if (pmap_enter(ufi->orig_map->pmap, curr_va, paddr, mapprot,
+		    PMAP_CANFAIL | mapprot | mmapflags) != 0) {
+			pmap_update(ufi->orig_map->pmap);
+			uvmfault_unlockall(ufi, ufi->entry->aref.ar_amap, uobj);
+			return ENOMEM;
+		}
+	}
+
+	pmap_update(ufi->orig_map->pmap);
+	uvmfault_unlockall(ufi, ufi->entry->aref.ar_amap, uobj);
 
 	mutex_lock(&bo->madv_lock);
 	WARN_ON(bo->madv != __VC4_MADV_PURGED);
-	mutex_unlock(&bo->madv_lock);	
-	return -EFAULT;
+	mutex_unlock(&bo->madv_lock);
+	return retval;
 }
 #else
 vm_fault_t vc4_fault(struct vm_fault *vmf)
