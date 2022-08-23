@@ -726,6 +726,14 @@ struct dma_buf * vc4_prime_export(struct drm_gem_object *obj, int flags)
 int vc4_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr, struct vm_page **pps, 
     int npages, int centeridx, vm_prot_t access_type, int flags)
 {
+	struct uvm_object *const uobj = ufi->entry->object.uvm_obj;
+	struct drm_gem_object *obj =
+	    container_of(uobj, struct drm_gem_object, gemo_uvmobj);
+	struct vc4_bo *bo = to_vc4_bo(obj);
+
+	mutex_lock(&bo->madv_lock);
+	WARN_ON(bo->madv != __VC4_MADV_PURGED);
+	mutex_unlock(&bo->madv_lock);	
 	return -EFAULT;
 }
 #else
