@@ -1655,7 +1655,7 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 		return;	
 	}
 
-	/* TODO: Handle hardware issue with DSI1 */
+	/* TODO: Fix DSi1 hardware bug */
 
 	init_completion(&dsi->xfer_completion);
 	/* At startup enable error-reporting interrupts and nothing else. */

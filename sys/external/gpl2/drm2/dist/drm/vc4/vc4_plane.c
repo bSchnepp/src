@@ -1024,11 +1024,6 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
 	uint32_t addr;
 
-#ifdef __NetBSD__
-	bus_space_handle_t hw_dlist_space;
-	int error;
-#endif
-
 	/* We're skipping the address adjustment for negative origin,
 	 * because this is only called on the primary plane.
 	 */
@@ -1044,16 +1039,8 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	 * needs to refill with pixels.
 	 */
 #ifdef __NetBSD__
-	error = bus_space_subregion(vc4_state->hw_dlist_bst, 
-		vc4_state->hw_dlist_bsh, 
-		vc4_state->ptr0_offset * sizeof(uint32_t), sizeof(addr), 
-		&hw_dlist_space);
-
-	if (error) {
-		/* Should never occur. */
-		return;
-	}
-	bus_space_write_4(vc4_state->hw_dlist_bst, hw_dlist_space, 0, addr);
+	bus_space_write_4(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, 
+			  vc4_state->ptr0_offset * sizeof(uint32_t), addr);
 #else
 	writel(addr, &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
 #endif
