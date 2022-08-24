@@ -345,7 +345,6 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 	sc->sc_dpi_encoder.base.type = VC4_ENCODER_TYPE_DPI;
 	sc->sc_dpi_encoder.dpi = &sc->sc_dpi;
 	sc->sc_dpi.encoder = &sc->sc_dpi_encoder.base.base;
-
 	sc->sc_dpi.pdev = NULL;
 	error = bus_space_map(faa->faa_bst, addr, size, 0, &sc->sc_dpi.bsh);
 	if (error) {
@@ -356,7 +355,6 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 
 	dpi = &sc->sc_dpi;
 	dpi->bst = faa->faa_bst;
-	vc4->dpi = dpi;
 
 	if (DPI_READ(DPI_ID) != DPI_ID_VALUE) {
 		aprint_error_dev(self, "bad DPI ID: got %x, expected: %x\n",
@@ -395,6 +393,7 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 	dev_set_drvdata(dev, dpi);
 #endif
 
+	vc4->dpi = dpi;
 	aprint_naive("\n");
 	aprint_normal(": DPI\n");
 	return;

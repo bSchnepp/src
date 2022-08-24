@@ -690,7 +690,6 @@ static const struct debugfs_reg32 dsi1_regs[] = {
 };
 #endif
 
-#ifndef __NetBSD__
 static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
@@ -699,7 +698,6 @@ static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
 static const struct drm_encoder_funcs vc4_dsi_encoder_funcs = {
 	.destroy = vc4_dsi_encoder_destroy,
 };
-#endif
 
 #ifdef notyet
 static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
@@ -1650,7 +1648,6 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	}
 
 	dsi->bst = faa->faa_bst;
-	vc4->dsi1 = dsi;
 
 	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
 		aprint_error(": got invalid dsi ID: got 0x%x, expected 0x%x\n",
@@ -1696,7 +1693,7 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	/* The esc clock rate is supposed to always be 100Mhz. */
 	error = clk_set_rate(dsi->escape_clock, 100 * 1000000);
 	if (error) {
-		dev_err(sc->sc_dev, "Failed to set esc clock: %d\n", error);
+		aprint_error_dev(self, "Failed to set esc clock: %d\n", error);
 		return;
 	}
 
@@ -1708,8 +1705,23 @@ vc4dsi_attach(device_t parent, device_t self, void *aux)
 	if (dsi->port == 1)
 		vc4->dsi1 = dsi;
 
+	drm_encoder_init(vc4->dev, dsi->encoder, &vc4_dsi_encoder_funcs,
+			 DRM_MODE_ENCODER_DSI, NULL);
+
+	error = -drm_bridge_attach(dsi->encoder, dsi->bridge, NULL);
+	if (error) {
+		aprint_error_dev(self, "bridge attach failed: %d\n", error);
+		return;
+	}
+	/* Disable the atomic helper calls into the bridge.  We
+	 * manually call the bridge pre_enable / enable / etc. calls
+	 * from our driver, since we need to sequence them within the
+	 * encoder's enable/disable paths.
+	 */
+	list_splice_init(&dsi->encoder->bridge_chain, &dsi->bridge_chain);
+
 	aprint_naive("\n");
-	aprint_normal(": GPU\n");
+	aprint_normal(": DSI\n");
 }
 #else
 static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
