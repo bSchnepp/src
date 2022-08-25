@@ -389,10 +389,6 @@ vc4dpi_attach(device_t parent, device_t self, void *aux)
 	if (error)
 		goto err_destroy_encoder;
 
-#ifdef notyet
-	dev_set_drvdata(dev, dpi);
-#endif
-
 	vc4->dpi = dpi;
 	aprint_naive("\n");
 	aprint_normal(": DPI\n");

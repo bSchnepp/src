@@ -303,7 +303,7 @@ vc4_reset(struct drm_device *dev)
 	DRM_INFO("Resetting GPU.\n");
 
 	mutex_lock(&vc4->power_lock);
-#if notyet
+#ifndef __NetBSD__
 	if (vc4->power_refcount) {
 		/* Power the device off and back on the by dropping the
 		 * reference on runtime PM.
