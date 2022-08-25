@@ -433,7 +433,7 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 				break;
 			}
 #ifdef notyet
-			schedule_timeout(timeout_expire - jiffies);
+			linux_schedule_timeout(timeout_expire - jiffies);
 #endif
 		} else {
 #ifdef notyet
@@ -1079,7 +1079,7 @@ int vc4_queue_seqno_cb(struct drm_device *dev,
 		cb->seqno = seqno;
 		list_add_tail((struct list_head *)&cb->work.work_entry, &vc4->seqno_cb_list);
 	} else {
-		schedule_work(&cb->work);
+		linux_schedule_work(&cb->work);
 	}
 #else
 	if (seqno > vc4->finished_seqno) {
