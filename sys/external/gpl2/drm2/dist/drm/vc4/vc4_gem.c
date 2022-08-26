@@ -432,11 +432,14 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 				ret = -ETIME;
 				break;
 			}
-#ifdef notyet
+#ifdef __NetBSD__
+#else
 			linux_schedule_timeout(timeout_expire - jiffies);
 #endif
 		} else {
-#ifdef notyet
+#ifdef __NetBSD__
+			yield();
+#else
 			schedule();
 #endif
 		}
