@@ -35,6 +35,7 @@
 #include <sys/queue.h>
 #include <sys/stdbool.h>
 
+#include <linux/types.h>
 #include <linux/kernel.h>	/* container_of */
 #include <linux/stringify.h>
 
@@ -74,6 +75,7 @@ struct workqueue_struct;
 struct work_struct {
 	volatile uintptr_t		work_owner;
 	TAILQ_ENTRY(work_struct)	work_entry;
+	struct list_head		entry;
 	void	(*func)(struct work_struct *); /* Linux API name */
 };
 

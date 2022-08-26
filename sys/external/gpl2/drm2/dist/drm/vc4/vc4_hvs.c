@@ -266,7 +266,7 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 	return irqret;
 }
 
-#if __NetBSD__
+#ifdef __NetBSD__
 
 static int vc4hvs_match(device_t, cfdata_t, void *);
 static void vc4hvs_attach(device_t, device_t, void *);
