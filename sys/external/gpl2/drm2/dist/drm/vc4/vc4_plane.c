@@ -1117,9 +1117,11 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 	bus_space_write_4(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, 
 			  vc4_state->pos0_offset, 
 			  vc4_state->dlist[vc4_state->pos0_offset]);
+
 	bus_space_write_4(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, 
 			  vc4_state->pos2_offset, 
 			  vc4_state->dlist[vc4_state->pos2_offset]);
+
 	bus_space_write_4(vc4_state->hw_dlist_bst, vc4_state->hw_dlist_bsh, 
 			  vc4_state->ptr0_offset, 
 			  vc4_state->dlist[vc4_state->ptr0_offset]);

@@ -1074,7 +1074,13 @@ int vc4_queue_seqno_cb(struct drm_device *dev,
 	INIT_WORK(&cb->work, vc4_seqno_cb_work);
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
-#ifdef notyet
+#ifdef __NetBSD__
+	if (seqno > vc4->finished_seqno) {
+		cb->seqno = seqno;
+	} else {
+		schedule_work(&cb->work);
+	}
+#else
 	if (seqno > vc4->finished_seqno) {
 		cb->seqno = seqno;
 		list_add_tail(&cb->work.entry, &vc4->seqno_cb_list);
