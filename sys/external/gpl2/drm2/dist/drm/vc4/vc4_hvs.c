@@ -322,15 +322,15 @@ vc4hvs_attach(device_t parent, device_t self, void *aux)
 		return;
 	}
 
+	hvs->bst = faa->faa_bst;
 	sc->sc_phandle = faa->faa_phandle;
-	error = bus_space_map(faa->faa_bst, addr, size, BUS_SPACE_MAP_LINEAR, &hvs->bsh);
+	error = bus_space_map(hvs->bst, addr, size, BUS_SPACE_MAP_LINEAR, &hvs->bsh);
 	if (error) {
 		aprint_error(": failed to map register %#lx@%#lx: %d\n",
 		    size, addr, error);
 		return;
 	}
 
-	hvs->bst = faa->faa_bst;
 	error = bus_space_subregion(hvs->bst, hvs->bsh, SCALER_DLIST_START, 
 		SCALER_DLIST_SIZE, &hvs->dlist_bsh);
 	if (error) {
