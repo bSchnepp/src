@@ -720,7 +720,7 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 #ifdef __NetBSD__
 	int error = 0;
 	bus_size_t offset = 0; 
-	bus_size_t old_offset = 0;
+	bus_size_t new_offset = 0;
 	bus_space_handle_t dlist_start;
 	bus_space_handle_t dlist_next;
 
@@ -755,12 +755,12 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 			enable_bg_fill = vc4_plane_state->needs_bg_fill;
 		}
 #ifdef __NetBSD__
-		old_offset = offset;
-		offset += vc4_plane_write_dlist(plane, vc4->hvs->bst, dlist_next) * sizeof(uint32_t);
-		error = bus_space_subregion(vc4->hvs->bst, vc4->hvs->bsh, old_offset, offset, &dlist_start);
+		new_offset = vc4_plane_write_dlist(plane, vc4->hvs->bst, dlist_next) * sizeof(uint32_t);
+		error = bus_space_subregion(vc4->hvs->bst, dlist_start, offset, new_offset, &dlist_next);
 		if (error) {
 			return;
 		}
+		offset += new_offset;
 #else
 		dlist_next += vc4_plane_write_dlist(plane, dlist_next);
 #endif
