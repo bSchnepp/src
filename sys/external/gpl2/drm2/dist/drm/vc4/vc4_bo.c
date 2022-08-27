@@ -311,6 +311,7 @@ static void vc4_bo_purge(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&bo->madv_lock));
 	WARN_ON(bo->madv != VC4_MADV_DONTNEED);
 
+	bus_dmamem_unmap(bo->base.dmat, bo->base.vaddr, bo->base.dmasize);
 	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.dmamap);
 	bo->base.vaddr = NULL;
 	bo->madv = __VC4_MADV_PURGED;
