@@ -139,6 +139,9 @@ static void vc4_bo_set_label(struct drm_gem_object *gem_obj, int label)
 
 #ifdef __NetBSD__
 	BUG_ON(!mutex_is_locked(&vc4->bo_lock));
+
+	/* Also check that vc4->bo_labels isn't nonsense */
+	BUG_ON(vc4->bo_labels == NULL);
 #else
 	lockdep_assert_held(&vc4->bo_lock);
 #endif
@@ -566,6 +569,12 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 	struct vc4_bo *bo = to_vc4_bo(gem_bo);
 	struct list_head *cache_list;
 
+#ifdef __NetBSD__
+	/* Check that these aren't wrong. */
+	BUG_ON(vc4 == NULL);
+	BUG_ON(bo == NULL);
+#endif
+
 	/* Remove the BO from the purgeable list. */
 	mutex_lock(&bo->madv_lock);
 	if (bo->madv == VC4_MADV_DONTNEED && !refcount_read(&bo->usecnt))
@@ -731,11 +740,14 @@ int vc4_fault(struct uvm_faultinfo *ufi, vaddr_t vaddr, struct vm_page **pps,
 	struct uvm_object *const uobj = ufi->entry->object.uvm_obj;
 	struct drm_gem_object *gem_obj =
 	    container_of(uobj, struct drm_gem_object, gemo_uvmobj);
+
 	struct drm_gem_cma_object *obj = to_drm_gem_cma_obj(gem_obj);
 	struct vc4_bo *bo = to_vc4_bo(gem_obj);
+
 	off_t curr_offset;
 	vaddr_t curr_va;
 	paddr_t paddr, mdpgno;
+
 	u_int mmapflags;
 	int lcv, retval;
 	vm_prot_t mapprot;
