@@ -246,14 +246,14 @@ vc4_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
-	if (sc->sc_drm_dev == NULL) {
+	if (IS_ERR(sc->sc_drm_dev)) {
 		aprint_error_dev(self, "unable to create drm device: %ld\n",
 		    PTR_ERR(sc->sc_drm_dev));
 		sc->sc_drm_dev = NULL;
 		return;
 	}
-	sc->sc_drm_dev->dev_private = &sc->sc_vc4dev;
 	sc->sc_vc4dev.dev = sc->sc_drm_dev;
+	sc->sc_drm_dev->dev_private = &sc->sc_vc4dev;
 	sc->sc_phandle = faa->faa_phandle;
 
 	sc->sc_drm_dev->bst = faa->faa_bst;
