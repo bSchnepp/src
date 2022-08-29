@@ -220,6 +220,7 @@ struct vc4_softc {
 	int			sc_phandle;
 
 	struct fdt_device_ports sc_ports;
+	struct vc4_dev		sc_vc4dev;
 };
 
 CFATTACH_DECL_NEW(vcfour, sizeof(struct vc4_softc),
@@ -241,18 +242,9 @@ vc4_attach(device_t parent, device_t self, void *aux)
 {
 	struct vc4_softc *const sc = device_private(self);
 	struct fdt_attach_args * const faa = aux;
-	const int phandle = faa->faa_phandle;
 	int error;
 
-	sc->sc_phandle = phandle;
 	sc->sc_dev = self;
-	vc4 = devm_kzalloc(sc->sc_dev, sizeof(*vc4), GFP_KERNEL);
-	if (!vc4) {
-		aprint_error_dev(self, "unable to allocate vc4: %d\n", 
-			ENOMEM);
-		return;
-	}
-
 	sc->sc_drm_dev = drm_dev_alloc(vc4_driver, self);
 	if (sc->sc_drm_dev == NULL) {
 		aprint_error_dev(self, "unable to create drm device: %ld\n",
@@ -260,36 +252,40 @@ vc4_attach(device_t parent, device_t self, void *aux)
 		sc->sc_drm_dev = NULL;
 		return;
 	}
+	sc->sc_drm_dev->dev_private = &sc->sc_vc4dev;
+	sc->sc_vc4dev.dev = sc->sc_drm_dev;
+	sc->sc_phandle = faa->faa_phandle;
+
 	sc->sc_drm_dev->bst = faa->faa_bst;
 	sc->sc_drm_dev->dmat = faa->faa_dmat;
 
-	vc4->dev = sc->sc_drm_dev;
-	sc->sc_drm_dev->dev_private = vc4;
-	INIT_LIST_HEAD(&vc4->debugfs_list);
+	vc4 = &sc->sc_vc4dev;
 
-	linux_mutex_init(&vc4->bin_bo_lock);
+	INIT_LIST_HEAD(&sc->sc_vc4dev.debugfs_list);
+
+	linux_mutex_init(&sc->sc_vc4dev.bin_bo_lock);
 
 	error = vc4_bo_cache_init(sc->sc_drm_dev);
 	if (error)
 		goto dev_put;
 
-	drm_mode_config_init(vc4->dev);
-	vc4_gem_init(vc4->dev);
+	drm_mode_config_init(sc->sc_vc4dev.dev);
+	vc4_gem_init(sc->sc_vc4dev.dev);
 
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
-	error = vc4_kms_load(vc4->dev);
+	error = vc4_kms_load(sc->sc_vc4dev.dev);
 	if (error < 0)
 		goto unbind_all;
 
 	/* XXX errno Linux->NetBSD */
-	error = -drm_dev_register(vc4->dev, 0);
+	error = -drm_dev_register(sc->sc_vc4dev.dev, 0);
 	if (error < 0) {
 		aprint_error_dev(self, "unable to register drm: %d\n", error);
 		return;
 	}
 
-	drm_fbdev_generic_setup(vc4->dev, 16);
+	drm_fbdev_generic_setup(sc->sc_vc4dev.dev, 16);
 
 	aprint_naive("\n");
 	aprint_normal(": VC4 Core\n");

@@ -1268,7 +1268,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_dev = self;
 	sc->sc_drm_dev = vc4->dev;
-	sc->sc_drm_dev->bst = faa->faa_bst;
 	if (fdtbus_get_reg(phandle, 0, &addr, &size) != 0) {
 		aprint_error(": couldn't get registers\n");
 		return;
@@ -1276,8 +1275,6 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 
 	sc->sc_phandle = faa->faa_phandle;
 	crtc = &vc4_crtc->base;
-	vc4_crtc->bst = faa->faa_bst;
-
 	vc4_crtc->pdev = NULL;
 	vc4_crtc->bst = faa->faa_bst;
 	proplen = OF_getproplen(phandle, "compatible");
