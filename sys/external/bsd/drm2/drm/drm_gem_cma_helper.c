@@ -43,9 +43,14 @@ drm_gem_cma_create_internal(struct drm_device *ddev, size_t size,
     struct sg_table *sgt)
 {
 	struct drm_gem_cma_object *obj;
+	struct drm_gem_object *gem_obj;
 	int error, nsegs;
 
-	obj = kmem_zalloc(sizeof(*obj), KM_SLEEP);
+	if (ddev->driver->gem_create_object)
+		gem_obj = ddev->driver->gem_create_object(ddev, size);
+	else
+		gem_obj = kmem_zalloc(sizeof(*obj), KM_SLEEP);
+	obj = container_of(gem_obj, struct drm_gem_cma_object, base);
 	obj->dmat = ddev->dmat;
 	obj->dmasize = size;
 
@@ -254,6 +259,7 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *ddev,
 	if (obj == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	obj->sgt = sgt;
 	return &obj->base;
 }
 
@@ -279,4 +285,21 @@ drm_gem_cma_prime_vunmap(struct drm_gem_object *gem_obj, void *vaddr)
 	    to_drm_gem_cma_obj(gem_obj);
 
 	KASSERT(vaddr == obj->vaddr);
+}
+
+static const struct drm_gem_object_funcs drm_cma_gem_default_funcs = {
+	.free = drm_gem_cma_free_object,
+	.get_sg_table = drm_gem_cma_prime_get_sg_table,
+	.vmap = drm_gem_cma_prime_vmap,
+};
+
+struct drm_gem_object *
+drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size)
+{
+	struct drm_gem_cma_object *obj;
+
+	obj = kmem_zalloc(sizeof(*obj), KM_SLEEP);
+	obj->base.funcs = &drm_cma_gem_default_funcs;
+
+	return &obj->base;
 }
