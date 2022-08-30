@@ -75,7 +75,6 @@ struct workqueue_struct;
 struct work_struct {
 	volatile uintptr_t		work_owner;
 	TAILQ_ENTRY(work_struct)	work_entry;
-	struct list_head		entry;
 	void	(*func)(struct work_struct *); /* Linux API name */
 };
 

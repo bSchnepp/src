@@ -1031,7 +1031,10 @@ void
 vc4_job_handle_completed(struct vc4_dev *vc4)
 {
 	unsigned long irqflags;
+#ifdef __NetBSD__
+#else
 	struct vc4_seqno_cb *cb, *cb_temp;
+#endif
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	while (!list_empty(&vc4->job_done_list)) {
@@ -1045,12 +1048,15 @@ vc4_job_handle_completed(struct vc4_dev *vc4)
 		spin_lock_irqsave(&vc4->job_lock, irqflags);
 	}
 
+#ifdef __NetBSD__
+#else
 	list_for_each_entry_safe(cb, cb_temp, &vc4->seqno_cb_list, work.entry) {
 		if (cb->seqno <= vc4->finished_seqno) {
 			list_del_init(&cb->work.entry);
 			schedule_work(&cb->work);
 		}
 	}
+#endif
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 }
@@ -1076,7 +1082,11 @@ int vc4_queue_seqno_cb(struct drm_device *dev,
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	if (seqno > vc4->finished_seqno) {
 		cb->seqno = seqno;
+#ifdef __NetBSD__
+		TAILQ_INSERT_TAIL(&vc4->seqno_cb_list, cb, work.work_entry);
+#else
 		list_add_tail(&cb->work.entry, &vc4->seqno_cb_list);
+#endif
 	} else {
 		schedule_work(&cb->work);
 	}
@@ -1316,7 +1326,10 @@ vc4_gem_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&vc4->bin_job_list);
 	INIT_LIST_HEAD(&vc4->render_job_list);
 	INIT_LIST_HEAD(&vc4->job_done_list);
+#ifdef __NetBSD__	
+#else
 	INIT_LIST_HEAD(&vc4->seqno_cb_list);
+#endif
 	spin_lock_init(&vc4->job_lock);
 
 	INIT_WORK(&vc4->hangcheck.reset_work, vc4_reset_work);

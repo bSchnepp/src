@@ -179,7 +179,11 @@ struct vc4_dev {
 	/* List of struct vc4_seqno_cb for callbacks to be made from a
 	 * workqueue when the given seqno is passed.
 	 */
+#ifdef __NetBSD__
+	TAILQ_HEAD(, vc4_seqno_cb) seqno_cb_list;
+#else
 	struct list_head seqno_cb_list;
+#endif
 
 	/* The memory used for storing binner tile alloc, tile state,
 	 * and overflow memory allocations.  This is freed when V3D
