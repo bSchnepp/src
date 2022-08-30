@@ -139,9 +139,6 @@ static void vc4_bo_set_label(struct drm_gem_object *gem_obj, int label)
 
 #ifdef __NetBSD__
 	BUG_ON(!mutex_is_locked(&vc4->bo_lock));
-
-	/* Also check that vc4->bo_labels isn't nonsense */
-	BUG_ON(vc4->bo_labels == NULL);
 #else
 	lockdep_assert_held(&vc4->bo_lock);
 #endif
@@ -568,12 +565,6 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_bo *bo = to_vc4_bo(gem_bo);
 	struct list_head *cache_list;
-
-#ifdef __NetBSD__
-	/* Check that these aren't wrong. */
-	BUG_ON(vc4 == NULL);
-	BUG_ON(bo == NULL);
-#endif
 
 	/* Remove the BO from the purgeable list. */
 	mutex_lock(&bo->madv_lock);
