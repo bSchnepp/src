@@ -180,7 +180,7 @@ struct vc4_dev {
 	 * workqueue when the given seqno is passed.
 	 */
 #ifdef __NetBSD__
-	TAILQ_HEAD(, vc4_seqno_cb) seqno_cb_list;
+	TAILQ_HEAD(, work_struct) seqno_cb_list;
 #else
 	struct list_head seqno_cb_list;
 #endif

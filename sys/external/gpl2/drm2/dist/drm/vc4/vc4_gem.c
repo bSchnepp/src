@@ -1032,6 +1032,8 @@ vc4_job_handle_completed(struct vc4_dev *vc4)
 {
 	unsigned long irqflags;
 #ifdef __NetBSD__
+	struct vc4_seqno_cb *cb;
+	struct work_struct *tmp;
 #else
 	struct vc4_seqno_cb *cb, *cb_temp;
 #endif
@@ -1049,6 +1051,13 @@ vc4_job_handle_completed(struct vc4_dev *vc4)
 	}
 
 #ifdef __NetBSD__
+	TAILQ_FOREACH(tmp, &vc4->seqno_cb_list, work_entry) {
+		cb = container_of(tmp, struct vc4_seqno_cb, work);
+		if (cb->seqno <= vc4->finished_seqno) {
+			TAILQ_REMOVE(&vc4->seqno_cb_list, tmp, work_entry);
+			schedule_work(&cb->work);
+		}
+	}
 #else
 	list_for_each_entry_safe(cb, cb_temp, &vc4->seqno_cb_list, work.entry) {
 		if (cb->seqno <= vc4->finished_seqno) {
