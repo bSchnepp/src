@@ -1305,9 +1305,10 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	 * that will take too much.
 	 */
 	primary_plane = vc4_plane_init(sc->sc_drm_dev, DRM_PLANE_TYPE_PRIMARY);
-	if (primary_plane == NULL) {
+	if (IS_ERR(primary_plane)) {
 		aprint_error(": failed to construct primary plane (%ld)\n", 
 		    PTR_ERR(primary_plane));
+		return;
 	}
 
 	drm_crtc_init_with_planes(sc->sc_drm_dev, crtc, primary_plane, NULL,
@@ -1335,7 +1336,7 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 		struct drm_plane *plane =
 			vc4_plane_init(sc->sc_drm_dev, DRM_PLANE_TYPE_OVERLAY);
 
-		if (plane == NULL)
+		if (IS_ERR(plane))
 			continue;
 
 		plane->possible_crtcs = drm_crtc_mask(crtc);
@@ -1346,7 +1347,7 @@ vc4crtc_attach(device_t parent, device_t self, void *aux)
 	 * initialized.
 	 */
 	cursor_plane = vc4_plane_init(sc->sc_drm_dev, DRM_PLANE_TYPE_CURSOR);
-	if (cursor_plane != NULL) {
+	if (!IS_ERR(cursor_plane)) {
 		cursor_plane->possible_crtcs = drm_crtc_mask(crtc);
 		crtc->cursor = cursor_plane;
 	}
