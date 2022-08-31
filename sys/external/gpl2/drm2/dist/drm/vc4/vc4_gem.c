@@ -1083,7 +1083,8 @@ int vc4_queue_seqno_cb(struct drm_device *dev,
 	if (seqno > vc4->finished_seqno) {
 		cb->seqno = seqno;
 #ifdef __NetBSD__
-		TAILQ_INSERT_TAIL(&vc4->seqno_cb_list, cb, work.work_entry);
+		/* NetBSD uses a bunch of queues here instead of lists.*/
+		TAILQ_INSERT_TAIL(&vc4->seqno_cb_list, &cb->work, work_entry);
 #else
 		list_add_tail(&cb->work.entry, &vc4->seqno_cb_list);
 #endif
@@ -1326,8 +1327,7 @@ vc4_gem_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&vc4->bin_job_list);
 	INIT_LIST_HEAD(&vc4->render_job_list);
 	INIT_LIST_HEAD(&vc4->job_done_list);
-#ifdef __NetBSD__	
-#else
+#ifndef __NetBSD__	
 	INIT_LIST_HEAD(&vc4->seqno_cb_list);
 #endif
 	spin_lock_init(&vc4->job_lock);
