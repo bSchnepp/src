@@ -1358,7 +1358,7 @@ static void vc4hdmi_attach(device_t, device_t, void *);
 
 static const struct device_compatible_entry compat_data[] = {
 	{ .compat = "brcm,bcm2835-hdmi",
-	  .data = (void *)((uintptr_t)(1)) },
+	  .value = 1 },
 	DEVICE_COMPAT_EOL
 };
 
