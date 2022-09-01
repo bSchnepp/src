@@ -34,6 +34,7 @@ DTS=		${DTSFILESCMD:sh}
 
 # Extra .dts files from arch/arm/dts
 .if !empty(MACHINE_ARCH:Mearmv7*)
+DTS+=		bcm2837-rpi-3-a-plus.dts
 DTS+=		bcm2837-rpi-3-b-plus.dts
 DTS+=		sun5i-r8-pocketchip.dts
 DTS+=		sun7i-a20-olinuxino-lime2-emmc-spi.dts

@@ -35,7 +35,6 @@
 #include <sys/queue.h>
 #include <sys/stdbool.h>
 
-#include <linux/types.h>
 #include <linux/kernel.h>	/* container_of */
 #include <linux/stringify.h>
 
