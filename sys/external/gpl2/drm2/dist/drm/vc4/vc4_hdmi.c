@@ -1636,7 +1636,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		int flags = 0;
 		hdmi->hpd_gpio = fdtbus_gpio_acquire(phandle, 
 			"hpd-gpios", GPIO_PIN_INPUT);
-		if (hdmi->hpd_gpio == NULL) {
+		if (IS_ERR(hdmi->hpd_gpio)) {
 			error = ENOENT;
 			goto err_unprepare_hsm;
 		}
@@ -1661,7 +1661,7 @@ vc4hdmi_attach(device_t parent, device_t self, void *aux)
 		vc4_hdmi_connector_init(sc->sc_drm_dev, sc->sc_hdmi.encoder, 
 			sc->sc_hdmi.ddc);
 
-	if (sc->sc_hdmi.connector == NULL) {
+	if (IS_ERR(sc->sc_hdmi.connector)) {
 		error = PTR_ERR(sc->sc_hdmi.connector);
 		goto err_destroy_encoder;
 	}
