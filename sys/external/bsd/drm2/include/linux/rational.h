@@ -35,6 +35,8 @@ inline void rational_best_approximation(
 	unsigned long *out_num, unsigned long *out_denom)
 {
 	/* Simply route the inputs back to the output. */
+	*out_num = num;
+	*out_denom = denom;
 }
 
 #endif
