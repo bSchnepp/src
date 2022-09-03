@@ -399,7 +399,9 @@ static irqreturn_t vc4_txp_interrupt(int irq, void *data)
 
 	TXP_WRITE(TXP_DST_CTRL, TXP_READ(TXP_DST_CTRL) & ~TXP_EI);
 	vc4_crtc_handle_vblank(to_vc4_crtc(txp->connector.base.state->crtc));
-#ifdef notyet
+#ifdef __NetBSD__
+	vc4_drm_writeback_signal_completion(&txp->connector, 0);
+#else
 	drm_writeback_signal_completion(&txp->connector, 0);
 #endif
 

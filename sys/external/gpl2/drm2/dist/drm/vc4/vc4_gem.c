@@ -446,7 +446,7 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 		}
 	}
 
-#ifdef notyet
+#ifndef __NetBSD__
 	finish_wait(&vc4->job_wait_queue, &wait);
 #endif
 	trace_vc4_wait_for_seqno_end(dev, seqno);
