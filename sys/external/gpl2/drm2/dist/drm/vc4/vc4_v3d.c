@@ -426,7 +426,7 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 
 
 
-#if __NetBSD__
+#ifdef __NetBSD__
 
 static int vc4v3d_match(device_t, cfdata_t, void *);
 static void vc4v3d_attach(device_t, device_t, void *);

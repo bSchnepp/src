@@ -746,7 +746,7 @@ static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) | phyc_ulps);
 	ret = wait_for((DSI_PORT_READ(STAT) & stat_ulps) == stat_ulps, 200);
 	if (ret) {
-#if __NetBSD__
+#ifdef __NetBSD__
 		dev_warn(dsi->pdev->pd_dev,
 			 "Timeout waiting for DSI ULPS entry: STAT 0x%08x",
 			 DSI_PORT_READ(STAT));
@@ -771,7 +771,7 @@ static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) & ~phyc_ulps);
 	ret = wait_for((DSI_PORT_READ(STAT) & stat_stop) == stat_stop, 200);
 	if (ret) {
-#if __NetBSD__
+#ifdef __NetBSD__
 		dev_warn(dsi->pdev->pd_dev,
 			 "Timeout waiting for DSI STOP entry: STAT 0x%08x",
 			 DSI_PORT_READ(STAT));
@@ -808,7 +808,7 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
-#if __NetBSD__
+#ifdef __NetBSD__
 	struct device *dev = dsi->pdev->pd_dev;
 #else
 	struct device *dev = &dsi->pdev->dev;
@@ -927,7 +927,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	 */
 	phy_clock = (pixel_clock_hz + 1000) * dsi->divider;
 	ret = clk_set_rate(dsi->pll_phy_clock, phy_clock);
-#if __NetBSD__
+#ifdef __NetBSD__
 	if (ret) {
 		dev_err(dsi->pdev->pd_dev,
 			"Failed to set phy clock to %ld: %d\n", phy_clock, ret);

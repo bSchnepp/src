@@ -757,7 +757,7 @@ static const struct drm_encoder_helper_funcs vc4_hdmi_encoder_helper_funcs = {
 	.enable = vc4_hdmi_encoder_enable,
 };
 
-#ifdef notyet
+#ifndef __NetBSD__
 /* HDMI audio codec callbacks */
 static void vc4_hdmi_audio_set_mai_clock(struct vc4_hdmi *hdmi)
 {
@@ -852,11 +852,8 @@ static void vc4_hdmi_audio_reset(struct vc4_hdmi *hdmi)
 {
 	struct drm_encoder *encoder = hdmi->encoder;
 	struct drm_device *drm = encoder->dev;
-#ifdef __NetBSD__
-	struct device *dev = hdmi->pdev->pd_dev;
-#else
 	struct device *dev = &hdmi->pdev->dev;
-#endif
+
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	int ret;
 
@@ -1845,9 +1842,7 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err_destroy_encoder;
 
-#ifndef __NetBSD__
 	vc4_debugfs_add_file(drm, "hdmi_regs", vc4_hdmi_debugfs_regs, hdmi);
-#endif
 
 	return 0;
 

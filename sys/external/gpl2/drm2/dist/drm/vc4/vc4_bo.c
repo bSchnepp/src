@@ -1254,10 +1254,10 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 #ifdef __NetBSD__
-	name = kmalloc(args->len + 1, GFP_KERNEL);
+	name = kmem_zalloc(args->len + 1, KM_NOSLEEP);
 	if (!name)
 		return -ENOMEM;
-	ret = copyinstr(u64_to_user_ptr(args->name), name, args->len + 1, NULL);
+	ret = -copyinstr(u64_to_user_ptr(args->name), name, args->len + 1, NULL);
 	if (ret != 0)
 		return PTR_ERR(name);
 #else

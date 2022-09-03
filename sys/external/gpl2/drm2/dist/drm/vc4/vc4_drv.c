@@ -155,7 +155,7 @@ static void vc4_close(struct drm_device *dev, struct drm_file *file)
 	kfree(vc4file);
 }
 
-#if __NetBSD__
+#ifdef __NetBSD__
 static const struct uvm_pagerops vc4_vm_ops = {
 	.pgo_fault = vc4_fault,
 	.pgo_reference = drm_gem_pager_reference,
