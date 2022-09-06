@@ -390,7 +390,7 @@ static void cleanup_work(struct work_struct *work)
 						     struct drm_writeback_job,
 						     cleanup_work);
 
-	drm_writeback_cleanup_job(job);
+	vc4_drm_writeback_cleanup_job(job);
 }
 
 /**
