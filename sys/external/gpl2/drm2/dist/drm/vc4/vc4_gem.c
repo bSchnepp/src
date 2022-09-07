@@ -26,10 +26,6 @@
 #include <sys/cdefs.h>
 __KERNEL_RCSID(0, "$NetBSD$");
 
-#ifdef __NetBSD__
-#include <linux/wait.h>
-#endif
-
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>

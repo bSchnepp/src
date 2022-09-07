@@ -27,7 +27,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 
 #ifdef __NetBSD__
 #include <dev/fdt/fdtvar.h>
-#include <drm/drm_irq.h>
 #endif
 
 #include <linux/clk.h>

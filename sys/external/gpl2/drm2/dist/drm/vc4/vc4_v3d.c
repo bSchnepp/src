@@ -13,8 +13,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #ifdef __NetBSD__
 #include <dev/fdt/fdtvar.h>
 #include <arch/evbarm/rpi/vcprop.h>
-#include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
 #endif
 
 #include <linux/clk.h>

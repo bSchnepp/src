@@ -51,7 +51,6 @@ __KERNEL_RCSID(0, "$NetBSD$");
 #include <drm/drm_vblank.h>
 
 #ifdef __NetBSD__
-#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #endif
 
